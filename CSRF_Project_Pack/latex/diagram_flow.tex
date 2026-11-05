@@ -1,0 +1,59 @@
+% =====================================================================
+%  diagram_flow.tex — CSRF attack sequence diagram (\csrfflowdiagram)
+%  Labels default to Vietnamese; an English document may \renewcommand
+%  them BEFORE \input{diagram_flow}.
+% =====================================================================
+\providecommand{\lblVictim}{Alice (nạn nhân) + Trình duyệt}
+\providecommand{\lblAttacker}{Attacker\\\texttt{attacker32.com}}
+\providecommand{\lblElgg}{Elgg\\\texttt{seed-server.com}}
+\providecommand{\lblSa}{1. Đăng nhập hợp lệ}
+\providecommand{\lblSb}{2. Set-Cookie \texttt{Elgg=...}}
+\providecommand{\lblSc}{3. Vô tình mở trang độc hại}
+\providecommand{\lblSd}{4. Trả \texttt{index.html} (Fetch script)}
+\providecommand{\lblNe}{5. Script tự chạy (\texttt{DOMContentLoaded})}
+\providecommand{\lblSf}{6. Fetch POST + cookie (\texttt{credentials:'include'})}
+\providecommand{\lblNg}{7. Cookie hợp lệ $\Rightarrow$ cập nhật About me}
+\providecommand{\lblSh}{8. Phản hồi 302 (opaque)}
+\providecommand{\lblSi}{9. Xem lại hồ sơ $\to$ đã bị đổi}
+
+\newcommand{\csrfflowdiagram}{%
+\begin{tikzpicture}[
+   >={Stealth[length=2.4mm]}, font=\sffamily\scriptsize,
+   head/.style={draw=navy,fill=navy,text=white,rounded corners=3pt,
+                align=center,minimum height=0.85cm,minimum width=3.2cm,
+                font=\sffamily\scriptsize\bfseries},
+   life/.style={line,dashed,line width=0.7pt},
+   msg/.style={->,accent,line width=0.9pt},
+   ret/.style={->,slate,line width=0.7pt,dashed},
+   note/.style={draw=amber,fill=amber!12,rounded corners=2pt,align=center,
+                inner sep=3pt,font=\sffamily\scriptsize,text=amber!60!black}]
+
+  \def\ax{0} \def\bx{5.4} \def\cx{10.8}
+  \def\ytop{0} \def\ybot{-9.3}
+
+  % lifeline heads
+  \node[head] (A) at (\ax,\ytop) {\lblVictim};
+  \node[head] (B) at (\bx,\ytop) {\lblAttacker};
+  \node[head] (C) at (\cx,\ytop) {\lblElgg};
+
+  % lifelines
+  \draw[life] (\ax,-0.55) -- (\ax,\ybot);
+  \draw[life] (\bx,-0.55) -- (\bx,\ybot);
+  \draw[life] (\cx,-0.55) -- (\cx,\ybot);
+
+  % messages
+  \draw[msg] (\ax,-1.2) -- node[above]{\lblSa} (\cx,-1.2);
+  \draw[ret] (\cx,-2.0) -- node[above]{\lblSb} (\ax,-2.0);
+  \draw[msg] (\ax,-2.9) -- node[above]{\lblSc} (\bx,-2.9);
+  \draw[ret] (\bx,-3.7) -- node[above]{\lblSd} (\ax,-3.7);
+
+  \node[note,anchor=north west] at (\ax-1.7,-4.35) {\lblNe};
+
+  \draw[msg,danger] (\ax,-5.6) -- node[above,text=danger]{\lblSf} (\cx,-5.6);
+
+  \node[note,anchor=north] at (\cx,-6.2) {\lblNg};
+
+  \draw[ret] (\cx,-7.4) -- node[above]{\lblSh} (\ax,-7.4);
+  \draw[msg,success] (\ax,-8.4) -- node[above,text=success]{\lblSi} (\cx,-8.4);
+\end{tikzpicture}%
+}

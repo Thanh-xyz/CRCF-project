@@ -126,6 +126,11 @@ Nhiều sinh viên nhầm lẫn rằng: *"Nếu máy chủ Elgg không có heade
 
 Dưới đây là mã nguồn chuẩn chỉnh của file `index.html` được thiết kế để đặt trên máy chủ `www.attacker32.com`.
 
+> **Hai lựa chọn đóng gói dữ liệu (đề bài cho phép cả hai):**
+> - [`src/index.html`](../src/index.html) — dùng **`URLSearchParams`** (`application/x-www-form-urlencoded`).
+> - [`src/index_formdata.html`](../src/index_formdata.html) — dùng **`FormData`** (`multipart/form-data`). Lưu ý: khi dùng `FormData`, **không** đặt header `Content-Type` thủ công để trình duyệt tự sinh `boundary`; `multipart/form-data` cũng là CORS-safelisted nên vẫn là Simple Request (không có Preflight).
+> - Có thể sinh tự động bằng: `python3 src/exploit.py --mode urlencoded` hoặc `--mode formdata`.
+
 ```html
 <!DOCTYPE html>
 <html lang="vi">

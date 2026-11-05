@@ -1,0 +1,343 @@
+% =====================================================================
+%  BÁO CÁO — Tấn công CSRF trên Elgg bằng Fetch API (Tiếng Việt)
+%  Biên dịch: xelatex report_vi.tex  (chạy 2–3 lần để cập nhật mục lục)
+% =====================================================================
+\documentclass[11pt,a4paper]{article}
+
+\usepackage{fontspec}
+\setmainfont{TeX Gyre Termes}
+\setsansfont{TeX Gyre Heros}
+\setmonofont{Noto Sans Mono}[Scale=0.86]
+
+\usepackage[vietnamese]{babel}
+
+\usepackage[a4paper,margin=2.4cm,headheight=15pt]{geometry}
+\input{sty_common}
+
+\usepackage{fancyhdr}
+\usepackage{titlesec}
+\usepackage{lastpage}
+\usepackage{hyperref}
+\hypersetup{colorlinks=true,linkcolor=accent,urlcolor=accent,citecolor=accent,
+  pdftitle={Tan cong CSRF tren Elgg bang Fetch API},
+  pdfauthor={Nhom 3 - An toan va Bao mat He thong Thong tin}}
+
+% ---- Section styling ----
+\titleformat{\section}{\sffamily\Large\bfseries\color{navy}}{\thesection.}{0.6em}{}[{\color{line}\titlerule[1pt]}]
+\titleformat{\subsection}{\sffamily\large\bfseries\color{brandblue}}{\thesubsection}{0.6em}{}
+\titleformat{\subsubsection}{\sffamily\normalsize\bfseries\color{ink}}{\thesubsubsection}{0.6em}{}
+\titlespacing*{\section}{0pt}{16pt}{8pt}
+
+% ---- Header / footer ----
+\pagestyle{fancy}
+\fancyhf{}
+\fancyhead[L]{\footnotesize\sffamily\color{slate}CSRF trên Elgg · Fetch API}
+\fancyhead[R]{\footnotesize\sffamily\color{slate}An toàn \& Bảo mật HTTT}
+\fancyfoot[C]{\footnotesize\sffamily\color{slate}Trang \thepage{} / \pageref{LastPage}}
+\renewcommand{\headrulewidth}{0.4pt}
+\renewcommand{\headrule}{\hbox to\headwidth{\color{line}\leaders\hrule height \headrulewidth\hfill}}
+
+\input{diagram_flow}
+
+\begin{document}
+\selectlanguage{vietnamese}
+
+% =====================================================================
+%  TRANG BÌA
+% =====================================================================
+\begin{titlepage}
+\begin{tikzpicture}[remember picture,overlay]
+  \fill[navy] (current page.north west) rectangle ([yshift=-5.2cm]current page.north east);
+  \fill[brandblue] ([yshift=-5.2cm]current page.north west) rectangle ([yshift=-5.7cm]current page.north east);
+  \node[anchor=north west,text=white,font=\sffamily\small] at ([xshift=2.4cm,yshift=-1.1cm]current page.north west)
+     {ĐẠI HỌC QUỐC GIA HÀ NỘI — TRƯỜNG ĐẠI HỌC KHOA HỌC TỰ NHIÊN};
+  \node[anchor=north west,text=white,font=\sffamily\small] at ([xshift=2.4cm,yshift=-1.7cm]current page.north west)
+     {Học phần: An toàn và Bảo mật Hệ thống Thông tin};
+  \node[anchor=north west,text=white,font=\sffamily\bfseries\LARGE,text width=16cm] at ([xshift=2.4cm,yshift=-3.0cm]current page.north west)
+     {Báo cáo Thực hành};
+  \node[anchor=north west,text=mist,font=\sffamily\large,text width=16cm] at ([xshift=2.4cm,yshift=-4.2cm]current page.north west)
+     {Tấn công Cross-Site Request Forgery (CSRF)};
+\end{tikzpicture}
+
+\vspace*{6.2cm}
+{\sffamily
+\begin{flushleft}
+{\color{slate}\large ĐỀ TÀI}\\[4pt]
+{\color{navy}\bfseries\Huge Tấn công CSRF trên nền tảng\\[6pt] mạng xã hội Elgg bằng Fetch API}\\[14pt]
+{\color{ink}\large Thay thế XMLHttpRequest / Form submit bằng \texttt{fetch()} + \texttt{URLSearchParams} / \texttt{FormData}}
+\end{flushleft}}
+
+\vfill
+{\sffamily\normalsize
+\begin{tcolorbox}[colback=mist,colframe=line,boxrule=0.6pt,arc=3pt]
+\begin{tabularx}{\linewidth}{@{}l Y@{}}
+\textbf{Nhóm thực hiện} & Nhóm 3 (03 thành viên)\\[3pt]
+\textbf{Thành viên 1} & \underline{\hspace{4.2cm}} — MSV: \underline{\hspace{3cm}} \quad (Technical / Offensive Lead)\\[3pt]
+\textbf{Thành viên 2} & \underline{\hspace{4.2cm}} — MSV: \underline{\hspace{3cm}} \quad (Browser \& Defense Lead)\\[3pt]
+\textbf{Thành viên 3} & \underline{\hspace{4.2cm}} — MSV: \underline{\hspace{3cm}} \quad (Research \& Slides Lead)\\[3pt]
+\textbf{Giảng viên} & \underline{\hspace{6cm}}\\[3pt]
+\textbf{Ngày báo cáo} & \today\\
+\end{tabularx}
+\end{tcolorbox}}
+
+\begin{center}\footnotesize\color{slate}
+\textbf{Lưu ý đạo đức:} Toàn bộ nội dung chỉ phục vụ học tập trong môi trường SEED Labs (Docker) — không nhằm tác động tới bất kỳ cá nhân/tổ chức nào.
+\end{center}
+\end{titlepage}
+
+% =====================================================================
+%  TÓM TẮT + MỤC LỤC
+% =====================================================================
+\begin{abstract}
+\noindent Báo cáo trình bày quá trình nghiên cứu và thực nghiệm tấn công \textbf{Cross-Site Request Forgery (CSRF)} trên ứng dụng mạng xã hội mã nguồn mở \textbf{Elgg} trong môi trường SEED Labs. Điểm cải tiến so với bài lab gốc là thay thế hoàn toàn \texttt{XMLHttpRequest} và cơ chế \texttt{form submit} bằng \textbf{Fetch API} hiện đại kết hợp \texttt{URLSearchParams} hoặc \texttt{FormData}. Mục tiêu khai thác là thay đổi trường \emph{About me} trong hồ sơ nạn nhân thành chuỗi \texttt{CSRF attack by <MSV>}. Báo cáo phân tích gói tin HTTP, giải thích các cơ chế cốt lõi (\texttt{credentials: 'include'}, Simple Request, \texttt{mode: 'no-cors'}), minh hoạ sơ đồ luồng tấn công, kiểm chứng kết quả và — quan trọng nhất — chứng minh hiệu quả của các biện pháp phòng thủ (SameSite cookie, anti-CSRF token, kiểm tra \texttt{Origin}). Cuối báo cáo tổng hợp lời giải 15 câu hỏi lý thuyết và bản khai báo mức độ sử dụng AI.
+\end{abstract}
+
+{\hypersetup{linkcolor=ink}\tableofcontents}
+\newpage
+
+% =====================================================================
+\section{Giới thiệu và mục tiêu}
+\subsection{Bối cảnh}
+CSRF là lỗ hổng ở tầng logic ứng dụng web, khai thác cơ chế \emph{tin cậy ngầm định} của trình duyệt: khi gửi một yêu cầu đến một tên miền, trình duyệt tự động đính kèm toàn bộ cookie thuộc tên miền đó — bao gồm cả cookie phiên xác thực. Kẻ tấn công lợi dụng điều này để khiến trình duyệt của nạn nhân (đang đăng nhập) gửi đi một yêu cầu thay đổi trạng thái mà nạn nhân không chủ ý.
+
+\subsection{Mục tiêu đề tài}
+\begin{itemize}
+  \item \textbf{Hệ thống mục tiêu:} Elgg chạy trên container SEED Labs (Apache tại \texttt{www.seed-server.com}, MySQL, Attacker tại \texttt{www.attacker32.com}).
+  \item \textbf{Hành vi khai thác:} từ máy chủ Attacker, giả mạo một HTTP POST tới endpoint \texttt{/action/profile/edit} để đổi trường \emph{About me} của nạn nhân thành \texttt{CSRF attack by <MSV>}.
+  \item \textbf{Ràng buộc kỹ thuật bắt buộc:}
+  \begin{enumerate}
+    \item \no{} Không dùng \texttt{XMLHttpRequest}.
+    \item \no{} Không dùng \texttt{<form>} tự submit (gây chuyển hướng, lộ dấu vết).
+    \item \yes{} Bắt buộc dùng \textbf{Fetch API} + \texttt{URLSearchParams} hoặc \texttt{FormData}.
+  \end{enumerate}
+\end{itemize}
+
+\begin{warnbox}[Phạm vi \& đạo đức]
+Mọi thao tác chỉ thực hiện trong môi trường lab cục bộ do nhóm sở hữu. Việc áp dụng các kỹ thuật này lên hệ thống không được cấp phép là vi phạm pháp luật và quy chế học thuật. Mục đích duy nhất là \emph{học tấn công để biết cách phòng thủ}.
+\end{warnbox}
+
+% =====================================================================
+\section{Cơ sở lý thuyết CSRF}
+\subsection{Ba điều kiện của một cuộc tấn công}
+\begin{enumerate}
+  \item Nạn nhân có \textbf{phiên đăng nhập còn hiệu lực} (session cookie).
+  \item Hành động mục tiêu \textbf{thay đổi trạng thái} và có tham số \textbf{dự đoán được}.
+  \item Ứng dụng \textbf{thiếu cơ chế phòng vệ} (không SameSite Strict/Lax, không anti-CSRF token).
+\end{enumerate}
+
+\subsection{Same-Origin, Same-Site và vai trò của cookie}
+Trình duyệt phân biệt \emph{same-origin} (trùng scheme + host + port) với \emph{cross-site} (khác eTLD+1). Chính sách Same-Origin Policy (SOP) cấm JavaScript của trang này \emph{đọc} nội dung/response của trang khác origin — nhưng \textbf{không} cấm \emph{gửi} yêu cầu. Chính khe hở "gửi được nhưng không đọc được" là nền tảng của CSRF: kẻ tấn công không cần đọc kết quả, chỉ cần hành động thay đổi trạng thái được thực thi.
+
+% =====================================================================
+\section{Môi trường thực nghiệm}
+\begin{lstlisting}[language=bash,caption={Khởi động môi trường SEED Labs}]
+cd ~/Labsetup
+docker-compose up -d                 # seed-server, mysql, attacker32
+docker ps --format "table {{.Names}}\t{{.Status}}"
+\end{lstlisting}
+
+\begin{center}\small
+\begin{tabularx}{\linewidth}{@{}l l Y@{}}
+\toprule
+\textbf{Dịch vụ} & \textbf{Địa chỉ} & \textbf{Vai trò}\\
+\midrule
+seed-server & 10.9.0.5 — \texttt{www.seed-server.com} & Apache + ứng dụng Elgg (mục tiêu)\\
+mysql       & 10.9.0.6 & Cơ sở dữ liệu người dùng Elgg\\
+attacker32  & 10.9.0.7 — \texttt{www.attacker32.com} & Máy chủ web của kẻ tấn công\\
+\bottomrule
+\end{tabularx}
+\end{center}
+
+\noindent Ánh xạ \texttt{/etc/hosts} trên máy nạn nhân trỏ các tên miền ảo về IP nội bộ \texttt{10.9.0.x}. Có thể kiểm tra kết nối trước khi demo bằng \texttt{python3 src/exploit.py -{}-check}.
+
+% =====================================================================
+\section{Phân tích HTTP request bằng DevTools}
+Để giả mạo chính xác, trước tiên phải bắt một request hợp lệ. Đăng nhập Alice (\texttt{alice}/\texttt{seedalice}), vào \emph{Edit Profile}, mở \texttt{F12 → Network} (bật \emph{Preserve log}), sửa một trường rồi bấm \textbf{Save}.
+
+\begin{lstlisting}[style=http,caption={Request POST khi lưu hồ sơ (rút gọn)}]
+POST /action/profile/edit HTTP/1.1
+Host: www.seed-server.com
+Content-Type: application/x-www-form-urlencoded
+Cookie: Elgg=p0dci8baqrl4i2ipv2mio3po05; ...
+
+name=Alice&description=<p>I am Alice</p>&accesslevel[description]=2
+&briefdescription=...&guid=42
+\end{lstlisting}
+
+\begin{center}\small
+\begin{tabularx}{\linewidth}{@{}l Y l@{}}
+\toprule
+\textbf{Tham số} & \textbf{Ý nghĩa} & \textbf{Giá trị mẫu}\\
+\midrule
+\texttt{guid} & ID định danh nạn nhân & \texttt{42}\\
+\texttt{name} & Tên hiển thị & \texttt{Alice}\\
+\texttt{description} & \textbf{Nội dung About me} & \texttt{<p>CSRF attack by <MSV></p>}\\
+\texttt{accesslevel[description]} & Quyền xem (2 = Public) & \texttt{2}\\
+\texttt{\_\_elgg\_token / \_\_elgg\_ts} & Anti-CSRF token & \emph{(đã tắt ở Task 3)}\\
+\bottomrule
+\end{tabularx}
+\end{center}
+
+% =====================================================================
+\section{Kỹ thuật khai thác bằng Fetch API}
+\subsection{So sánh ba phương pháp}
+\begin{center}\small
+\begin{tabularx}{\linewidth}{@{}Y C C C@{}}
+\toprule
+\textbf{Tiêu chí} & \textbf{Form submit} & \textbf{XHR} & \textbf{Fetch API}\\
+\midrule
+Tàng hình (không chuyển trang) & \no & \yes & \yes\\
+Cú pháp hiện đại (Promise/async) & \no & \no & \yes\\
+Tuân thủ đề bài & \no{} cấm & \no{} cấm & \yes{} bắt buộc\\
+\bottomrule
+\end{tabularx}
+\end{center}
+
+\subsection{Hai cơ chế then chốt}
+\begin{infobox}[\texttt{credentials: 'include'} — gửi cookie qua cross-origin]
+Mặc định, \texttt{fetch()} cross-origin dùng \texttt{credentials: 'same-origin'} nên \emph{không} gửi cookie của \texttt{seed-server.com}. Phải đặt \texttt{credentials: 'include'} để trình duyệt tự đính kèm cookie phiên của nạn nhân — nếu thiếu, server coi là khách vãng lai và tấn công thất bại.
+\end{infobox}
+
+\begin{infobox}[Simple Request + \texttt{mode: 'no-cors'} — vượt Preflight]
+\texttt{Content-Type} dạng \texttt{application/x-www-form-urlencoded} (URLSearchParams) hoặc \texttt{multipart/form-data} (FormData) đều thuộc nhóm \emph{CORS-safelisted} $\Rightarrow$ đây là \textbf{Simple Request}, không phát sinh Preflight \texttt{OPTIONS}. Dù SOP chặn JavaScript \emph{đọc} response (opaque), server Elgg \emph{vẫn} nhận cookie hợp lệ và ghi đè cơ sở dữ liệu thành công.
+\end{infobox}
+
+\subsection{Mã khai thác (biến thể URLSearchParams)}
+\begin{lstlisting}[language=JavaScript,caption={Lõi tấn công trong src/index.html}]
+const payload = new URLSearchParams();
+payload.append('name', 'Alice');
+payload.append('description', '<p>CSRF attack by B21DCCN001</p>');
+payload.append('accesslevel[description]', '2');   // 2 = Public
+payload.append('guid', '42');                       // Alice's GUID
+
+fetch('http://www.seed-server.com/action/profile/edit', {
+  method: 'POST',
+  mode: 'no-cors',          // Simple Request -> no Preflight OPTIONS
+  credentials: 'include',   // REQUIRED: attach victim's session cookie
+  headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+  body: payload
+});
+\end{lstlisting}
+
+\begin{infobox}[Biến thể FormData]
+Khi dùng \texttt{new FormData()}, \textbf{không} khai báo header \texttt{Content-Type} thủ công để trình duyệt tự sinh \texttt{boundary}. Xem \texttt{src/index\_formdata.html}. Có thể sinh tự động: \texttt{python3 src/exploit.py -{}-mode formdata}.
+\end{infobox}
+
+% =====================================================================
+\section{Sơ đồ luồng tấn công}
+\begin{center}
+\scalebox{0.92}{\csrfflowdiagram}
+\end{center}
+
+% =====================================================================
+\section{Kết quả thực nghiệm}
+Ba mốc bằng chứng cần ghi lại (chèn ảnh chụp màn hình thực tế của nhóm vào các khung dưới):
+
+\begin{center}
+\begin{tabular}{@{}p{0.31\linewidth}p{0.31\linewidth}p{0.31\linewidth}@{}}
+\fbox{\parbox[c][3.2cm][c]{\linewidth}{\centering\footnotesize\color{slate}\textbf{Ảnh 1 — Trước}\\[4pt]About me ban đầu của Alice}} &
+\fbox{\parbox[c][3.2cm][c]{\linewidth}{\centering\footnotesize\color{slate}\textbf{Ảnh 2 — Trong}\\[4pt]Console F12 trên trang Attacker: Fetch POST gửi ngầm}} &
+\fbox{\parbox[c][3.2cm][c]{\linewidth}{\centering\footnotesize\color{slate}\textbf{Ảnh 3 — Sau}\\[4pt]About me = \texttt{CSRF attack by <MSV>}}}\\
+\end{tabular}
+\end{center}
+
+\begin{okbox}[Kết quả]
+Sau khi nạn nhân truy cập trang Attacker, trường About me bị đổi thành \texttt{CSRF attack by <MSV>} mà không có bất kỳ cảnh báo hay chuyển hướng nào — chứng tỏ khai thác thành công hoàn toàn trong môi trường chưa bật phòng vệ.
+\end{okbox}
+
+% =====================================================================
+\section{Kiểm chứng và phòng thủ}
+\subsection{Bật lại anti-CSRF token của Elgg}
+Khi khôi phục cơ chế kiểm tra \texttt{\_\_elgg\_token}/\texttt{\_\_elgg\_ts}, chạy lại đúng payload cũ:
+
+\begin{center}\small
+\begin{tabularx}{\linewidth}{@{}Y C C@{}}
+\toprule
+ & \textbf{Phòng vệ TẮT} & \textbf{Phòng vệ BẬT}\\
+\midrule
+Payload có \texttt{\_\_elgg\_token}? & Không & Vẫn không\\
+Phản hồi server & Cập nhật DB (302) & \textbf{Từ chối} (thiếu token)\\
+About me của Alice & Bị đổi & \textbf{Không đổi}\\
+\bottomrule
+\end{tabularx}
+\end{center}
+
+\noindent Vì SOP cấm JavaScript của \texttt{attacker32.com} đọc token nằm trên trang \texttt{seed-server.com}, request giả mạo luôn thiếu token hợp lệ $\Rightarrow$ bị chặn. Đây là bằng chứng trực quan cho \emph{Synchronizer Token Pattern}.
+
+\subsection{Phòng thủ nhiều lớp (Defense-in-Depth)}
+\begin{center}\small
+\begin{tabularx}{\linewidth}{@{}l Y Y@{}}
+\toprule
+\textbf{Lớp} & \textbf{Biện pháp} & \textbf{Chặn được gì}\\
+\midrule
+Cookie & \texttt{SameSite=Lax/Strict} & Trình duyệt không gửi cookie cross-site\\
+Ứng dụng & Anti-CSRF token (Synchronizer) & Attacker không đọc được token (nhờ SOP)\\
+Ứng dụng & Double Submit Cookie & Attacker không đọc được cookie để nhét vào body\\
+Header & Kiểm tra \texttt{Origin} / \texttt{Sec-Fetch-Site} & Từ chối request thay đổi trạng thái từ nguồn lạ\\
+Giao diện & \texttt{X-Frame-Options} / CSP \texttt{frame-ancestors} & Chống Clickjacking qua iframe\\
+\bottomrule
+\end{tabularx}
+\end{center}
+
+\begin{infobox}[Khuyến nghị thực tế]
+Kết hợp \texttt{SameSite=Lax} (lớp mặc định) + anti-CSRF token (lớp ứng dụng) + kiểm tra \texttt{Origin} cho endpoint nhạy cảm. Tuyệt đối không dùng \texttt{GET} cho hành động thay đổi trạng thái.
+\end{infobox}
+
+% =====================================================================
+\section{Phân công công việc}
+\begin{center}\small
+\begin{tabularx}{\linewidth}{@{}l Y@{}}
+\toprule
+\textbf{Thành viên} & \textbf{Trọng tâm}\\
+\midrule
+TV1 — Offensive & Docker, bắt gói tin, mã \texttt{index.html} + \texttt{exploit.py}; Q\&A 4–8\\
+TV2 — Browser/Defense & Phân tích trình duyệt/CORS/SameSite, quay \& dựng video; Q\&A 1,3,10–14\\
+TV3 — Research/Slides & Slide, sơ đồ, báo cáo, kiểm chứng phòng thủ; Q\&A 2,9,15\\
+\bottomrule
+\end{tabularx}
+\end{center}
+\noindent \textbf{Nền tảng chung bắt buộc (100\% thành viên):} tự chạy Docker, tự bắt gói tin và tự đổi About me thành MSV của mình; cùng tham gia buổi vấn đáp chéo 15 câu hỏi.
+
+% =====================================================================
+\section{Khai báo mức độ sử dụng AI}
+\begin{enumerate}
+  \item \textbf{Mức 1 — Phản biện:} dùng AI thảo luận cơ chế \texttt{credentials: 'include'}, Simple Request và CORS; sinh viên tự viết mã.
+  \item \textbf{Mức 2 — Đồng sáng tạo:} sinh viên thiết kế cấu trúc báo cáo/slide/sơ đồ, AI hỗ trợ trau chuốt câu từ và định dạng.
+  \item \textbf{Mức 3 — Tạo sinh theo prompt:} AI sinh khung \texttt{exploit.py} và template HTML; sinh viên cấu hình giá trị thật và kiểm thử.
+\end{enumerate}
+\noindent Mọi kết quả thực nghiệm và tính chính xác do nhóm trực tiếp chịu trách nhiệm.
+
+% =====================================================================
+\section{Kết luận}
+Nhóm đã hoàn thành 100\% mục tiêu: đổi About me thành \texttt{CSRF attack by <MSV>} bằng Fetch API (không dùng XHR/Form), phân tích đầy đủ cơ chế khai thác, kiểm chứng kết quả và chứng minh hiệu quả phòng thủ. Bài học cốt lõi: CSRF không bị HTTPS ngăn chặn; biện pháp căn cơ là \texttt{SameSite} cookie kết hợp anti-CSRF token và kiểm tra nguồn gốc request.
+
+% =====================================================================
+\appendix
+\section{Phụ lục: Lời giải 15 câu hỏi (tóm tắt)}
+\small
+\begin{enumerate}[leftmargin=2.2em]
+\item \textbf{SameSite chống CSRF:} chỉ dẫn trình duyệt không gửi cookie trong request cross-site (Strict/Lax) $\Rightarrow$ request giả mạo mất phiên xác thực.
+\item \textbf{Secret token:} server nhúng token ngẫu nhiên theo phiên vào form; nhờ SOP, attacker không đọc được token $\Rightarrow$ request giả thiếu token bị từ chối.
+\item \textbf{HTTPS vẫn lo CSRF:} HTTPS chỉ bảo mật đường truyền; cookie vẫn được đính kèm trong đường hầm TLS, nên CSRF (lỗi tầng ứng dụng) không bị ngăn.
+\item \textbf{GET \texttt{delete.php?pageid=5}:} dùng \texttt{<img src=...>} ẩn hoặc \texttt{fetch(...,\{credentials:'include'\})} để kích hoạt GET giả mạo.
+\item \textbf{POST \texttt{delete.php}:} dùng Fetch + \texttt{URLSearchParams(pageid=5)}, chạy ngầm không chuyển trang.
+\item \textbf{Tìm guid của Boby:} qua URL profile, \texttt{src} avatar, link Add friend, hoặc RSS feed — đều công khai.
+\item \textbf{Không biết user id:} phụ thuộc server — nếu id suy ra từ session thì vẫn tấn công được; nếu bắt buộc id ngẫu nhiên lớn trong body thì không.
+\item \textbf{Tấn công khách bất kỳ:} (1) \no{} sửa profile — cần guid nạn nhân mà SOP không cho đọc; (2) \yes{} add friend — chỉ cần guid của chính Alice, danh tính nạn nhân do session suy ra.
+\item \textbf{Session ID trong data part (Double Submit):} cookie do trình duyệt tự gửi, nhưng data part phải do JS trang gốc gán; attacker không đọc được cookie nên không điền đúng $\Rightarrow$ server phát hiện cross-site.
+\item \textbf{Trình duyệt biết cross-site?} Có — biết rõ origin nguồn và đích, gửi kèm \texttt{Origin}, \texttt{Sec-Fetch-Site}.
+\item \textbf{Server biết cross-site?} Mặc định HTTP thuần thì không; biết được nếu kiểm tra \texttt{Origin}/\texttt{Referer}/\texttt{Sec-Fetch-Site}/token.
+\item \textbf{Vì sao không chỉ dựa Referer:} Referer có thể bị bỏ hợp lệ (\texttt{Referrer-Policy}, HTTPS→HTTP, proxy) và dễ bị qua mặt bằng regex lỏng.
+\item \textbf{Vì sao cần biết cross-site:} để chỉ cho phép hành động đổi trạng thái khi người dùng thực sự chủ ý, tránh bị mượn quyền.
+\item \textbf{Cấm hẳn cookie cross-site?} Về kỹ thuật được nhưng phá vỡ điều hướng, SSO/OAuth, widget nhúng; giải pháp là \texttt{SameSite=Lax} mặc định.
+\item \textbf{Iframe Facebook:} request từ trong iframe tới Facebook là same-site đối với Facebook (không cross-site); nguy cơ Clickjacking; bảo mật bằng \texttt{X-Frame-Options} / CSP \texttt{frame-ancestors}.
+\end{enumerate}
+
+\begin{thebibliography}{9}\small
+\bibitem{du} W. Du, \emph{Computer \& Internet Security: A Hands-on Approach}, 3rd ed.
+\bibitem{fetch} WHATWG, \emph{Fetch Living Standard}, \url{https://fetch.spec.whatwg.org/}.
+\bibitem{owasp} OWASP, \emph{Cross-Site Request Forgery Prevention Cheat Sheet}.
+\bibitem{samesite} IETF, \emph{RFC 6265bis — Cookies: SameSite attribute}.
+\end{thebibliography}
+
+\end{document}

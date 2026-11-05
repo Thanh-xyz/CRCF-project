@@ -18,17 +18,26 @@ Dự án tập trung vào việc nghiên cứu, thực nghiệm và phân tích 
 ```text
 CSRF_Project_Pack/
 ├── README.md                           # Giới thiệu tổng quan và hướng dẫn điều hướng
+├── SUBMISSION_CHECKLIST.md             # Checklist rà soát lần cuối trước khi nộp bài
 ├── docs/
+│   ├── 00_ETHICS_AND_SCOPE.md          # Phạm vi sử dụng & tuyên bố đạo đức (chỉ dùng trong lab)
 │   ├── 01_PROJECT_OVERVIEW_AND_PLAN.md # Kế hoạch chi tiết, phương pháp và phân công nhiệm vụ công bằng (RACI)
 │   ├── 02_HANDS_ON_FETCH_API_GUIDE.md  # Hướng dẫn kỹ thuật từng bước (Step-by-step Hands-on Guide)
-│   └── 03_CSRF_DOCX_ANSWERS.md         # Giải chi tiết 15 câu hỏi lý thuyết trong CSRF.docx
+│   ├── 03_CSRF_DOCX_ANSWERS.md         # Giải chi tiết 15 câu hỏi lý thuyết trong CSRF.docx (+ bảng đối chiếu)
+│   └── 04_VERIFICATION_AND_DEFENSE.md  # Kiểm chứng kết quả tấn công & chứng minh phòng thủ
 ├── src/
-│   ├── index.html                      # Trang web độc hại của Attacker sử dụng Fetch API + URLSearchParams
-│   └── exploit.py                      # Script Python hỗ trợ dựng máy chủ Web Attacker & kiểm thử payload
+│   ├── index.html                      # Trang web độc hại của Attacker — Fetch API + URLSearchParams
+│   ├── index_formdata.html             # Biến thể — Fetch API + FormData (lựa chọn thứ 2 của đề bài)
+│   └── exploit.py                      # Script sinh exploit (urlencoded/formdata), dựng web server & --check kết nối
 ├── slides/
 │   └── SLIDE_OUTLINE_AND_SCRIPT.md     # Đề cương 12 Slide thuyết trình 10 phút & Kịch bản thuyết minh
-└── report/
-    └── VIDEO_DEMO_SCRIPT.md            # Kịch bản quay video demo (Storyboard & Voiceover) + Khai báo AI
+├── report/
+│   └── VIDEO_DEMO_SCRIPT.md            # Kịch bản quay video demo (Storyboard & Voiceover) + Khai báo AI
+└── latex/                              # Báo cáo & Slide biên dịch LaTeX → PDF (song ngữ VI/EN)
+    ├── report_vi.pdf / report_en.pdf   # Báo cáo hoàn chỉnh (Tiếng Việt / English)
+    ├── slides_vi.pdf / slides_en.pdf   # Slide thuyết trình (Tiếng Việt / English)
+    ├── *.tex, sty_common.tex, diagram_flow.tex  # Mã nguồn LaTeX (XeLaTeX)
+    └── build.sh                        # Script biên dịch toàn bộ sang PDF
 ```
 
 ---
@@ -45,8 +54,20 @@ CSRF_Project_Pack/
 
 ## 🚀 4. Hướng dẫn sử dụng nhanh
 
+0. **Đọc phạm vi & đạo đức trước tiên**: [`docs/00_ETHICS_AND_SCOPE.md`](docs/00_ETHICS_AND_SCOPE.md) — bộ hồ sơ CHỈ dùng trong lab SEED.
 1. **Đọc kế hoạch & phân công**: Mở file [`docs/01_PROJECT_OVERVIEW_AND_PLAN.md`](docs/01_PROJECT_OVERVIEW_AND_PLAN.md).
 2. **Thực hành triển khai mã khai thác**: Làm theo hướng dẫn tại [`docs/02_HANDS_ON_FETCH_API_GUIDE.md`](docs/02_HANDS_ON_FETCH_API_GUIDE.md).
 3. **Ôn tập lý thuyết & trả lời câu hỏi**: Tham khảo lời giải đầy đủ tại [`docs/03_CSRF_DOCX_ANSWERS.md`](docs/03_CSRF_DOCX_ANSWERS.md).
-4. **Chuẩn bị thuyết trình**: Xem cấu trúc slide và kịch bản nói tại [`slides/SLIDE_OUTLINE_AND_SCRIPT.md`](slides/SLIDE_OUTLINE_AND_SCRIPT.md).
-5. **Quay video nộp bài**: Xem kịch bản storyboard tại [`report/VIDEO_DEMO_SCRIPT.md`](report/VIDEO_DEMO_SCRIPT.md).
+4. **Kiểm chứng & chứng minh phòng thủ**: Xem [`docs/04_VERIFICATION_AND_DEFENSE.md`](docs/04_VERIFICATION_AND_DEFENSE.md).
+5. **Chuẩn bị thuyết trình**: Xem cấu trúc slide và kịch bản nói tại [`slides/SLIDE_OUTLINE_AND_SCRIPT.md`](slides/SLIDE_OUTLINE_AND_SCRIPT.md).
+6. **Báo cáo & Slide bản PDF hoàn chỉnh (song ngữ)**: thư mục [`latex/`](latex/) — `report_vi.pdf`, `report_en.pdf`, `slides_vi.pdf`, `slides_en.pdf`. Biên dịch lại bằng `cd latex && ./build.sh`.
+7. **Quay video nộp bài**: Xem kịch bản storyboard tại [`report/VIDEO_DEMO_SCRIPT.md`](report/VIDEO_DEMO_SCRIPT.md).
+8. **Rà soát trước khi nộp**: Theo [`SUBMISSION_CHECKLIST.md`](SUBMISSION_CHECKLIST.md).
+
+### Lệnh nhanh với `exploit.py`
+```bash
+python3 src/exploit.py --check                       # kiểm tra kết nối tới máy chủ lab (không tấn công)
+python3 src/exploit.py --msv B21DCCN123              # sinh index.html (URLSearchParams) theo MSV
+python3 src/exploit.py --msv B21DCCN123 --mode formdata   # sinh biến thể dùng FormData
+python3 src/exploit.py --serve 80                    # dựng web server Attacker tại cổng 80
+```

@@ -1,0 +1,96 @@
+% =====================================================================
+%  sty_common.tex — Shared visual style for the CSRF report (VI / EN)
+%  Engine: XeLaTeX. Input AFTER \documentclass, fontspec fonts and babel.
+% =====================================================================
+
+% ---------- Colours (tie-in with the exploit page palette) -----------
+\usepackage{xcolor}
+\definecolor{navy}{HTML}{1E3C72}
+\definecolor{brandblue}{HTML}{2A5298}
+\definecolor{accent}{HTML}{2563EB}
+\definecolor{danger}{HTML}{DC2626}
+\definecolor{success}{HTML}{15803D}
+\definecolor{amber}{HTML}{B45309}
+\definecolor{ink}{HTML}{0F172A}
+\definecolor{slate}{HTML}{475569}
+\definecolor{mist}{HTML}{F1F5F9}
+\definecolor{line}{HTML}{CBD5E1}
+\definecolor{codebg}{HTML}{0F172A}
+\definecolor{codefg}{HTML}{E2E8F0}
+\definecolor{codekey}{HTML}{38BDF8}
+\definecolor{codestr}{HTML}{86EFAC}
+\definecolor{codecom}{HTML}{94A3B8}
+
+% ---------- Graphics / diagrams --------------------------------------
+\usepackage{graphicx}
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning,calc,shadows.blur,backgrounds,fit}
+
+% ---------- Tables ---------------------------------------------------
+\usepackage{booktabs}
+\usepackage{array}
+\usepackage{tabularx}
+\usepackage{colortbl}
+\newcolumntype{Y}{>{\raggedright\arraybackslash}X}
+\newcolumntype{C}{>{\centering\arraybackslash}X}
+
+% ---------- Callout boxes --------------------------------------------
+\usepackage[most]{tcolorbox}
+
+\newtcolorbox{infobox}[1][]{
+  enhanced, breakable, colback=mist, colframe=accent,
+  boxrule=0pt, leftrule=3pt, arc=2pt, left=10pt, right=10pt,
+  top=7pt, bottom=7pt, fonttitle=\bfseries\color{navy},
+  coltitle=navy, title={#1}}
+
+\newtcolorbox{warnbox}[1][]{
+  enhanced, breakable, colback=danger!6, colframe=danger,
+  boxrule=0pt, leftrule=3pt, arc=2pt, left=10pt, right=10pt,
+  top=7pt, bottom=7pt, fonttitle=\bfseries, coltitle=danger, title={#1}}
+
+\newtcolorbox{okbox}[1][]{
+  enhanced, breakable, colback=success!6, colframe=success,
+  boxrule=0pt, leftrule=3pt, arc=2pt, left=10pt, right=10pt,
+  top=7pt, bottom=7pt, fonttitle=\bfseries, coltitle=success, title={#1}}
+
+% ---------- Source-code listings (JS / Python / HTTP / bash) ---------
+\usepackage{listings}
+\lstset{
+  basicstyle=\footnotesize\ttfamily\color{codefg},
+  backgroundcolor=\color{codebg},
+  keywordstyle=\color{codekey}\bfseries,
+  stringstyle=\color{codestr},
+  commentstyle=\color{codecom}\itshape,
+  numberstyle=\tiny\color{codecom},
+  frame=single, framerule=0pt, rulecolor=\color{codebg},
+  numbers=left, numbersep=8pt, tabsize=2,
+  showstringspaces=false, breaklines=true, breakatwhitespace=false,
+  columns=fullflexible, keepspaces=true,
+  xleftmargin=14pt, xrightmargin=6pt, aboveskip=10pt, belowskip=6pt,
+  % Mono font (Noto Sans Mono) has full Vietnamese coverage -> no literate hacks.
+  extendedchars=true, inputencoding=utf8,
+}
+% JavaScript dialect
+\lstdefinelanguage{JavaScript}{
+  keywords={const,let,var,function,async,await,return,try,catch,new,if,else,
+            for,while,of,in,typeof,this,null,true,false,window,document},
+  morekeywords=[2]{fetch,URLSearchParams,FormData,append,addEventListener},
+  keywordstyle=[2]\color{codestr}\bfseries,
+  sensitive=true,
+  morecomment=[l]{//}, morecomment=[s]{/*}{*/},
+  morestring=[b]', morestring=[b]", morestring=[b]`,
+}
+\lstdefinestyle{http}{
+  language={}, morekeywords={POST,GET,HTTP,Host,Cookie,Content-Type,User-Agent,Accept,Connection},
+}
+
+% ---------- Icons via dingbats (no fontawesome dependency) -----------
+\usepackage{pifont}
+\newcommand{\yes}{\textcolor{success}{\ding{52}}}
+\newcommand{\no}{\textcolor{danger}{\ding{56}}}
+\newcommand{\step}[1]{\textcolor{white}{\colorbox{accent}{\footnotesize\bfseries~#1~}}}
+
+% ---------- Misc -----------------------------------------------------
+\usepackage{enumitem}
+\setlist{leftmargin=1.4em,itemsep=2pt,topsep=3pt}
+\usepackage{microtype}

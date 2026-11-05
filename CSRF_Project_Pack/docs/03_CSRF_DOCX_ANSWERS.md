@@ -4,6 +4,32 @@ Tài liệu này cung cấp đáp án chi tiết, chuẩn xác về mặt học 
 
 ---
 
+## ✅ Bảng đối chiếu câu hỏi (Verification Map)
+
+Bảng dưới đây đối chiếu từng câu hỏi gốc trong `9. CSRF.docx` với lời giải tương ứng, bảo đảm đủ 15 câu, không thiếu, không lạc đề.
+
+| # | Chủ đề câu hỏi gốc (CSRF.docx) | Dạng đáp án | Nhóm chuyên đề |
+| :--: | :--- | :--- | :--- |
+| 1 | SameSite cookie chống CSRF | Giải thích | TV2 |
+| 2 | Secret token chống CSRF & vì sao hiệu quả | Giải thích | TV3 |
+| 3 | HTTPS có còn lo CSRF không | Có/Không + giải thích | TV2 |
+| 4 | Dựng trang độc hại cho GET `delete.php?pageid=5` | Code + giải thích | TV1 |
+| 5 | Dựng trang độc hại cho POST `delete.php` (`pageid=5`) | Code + giải thích | TV1 |
+| 6 | Cách Alice tìm `guid` của Boby | Giải thích | TV1 |
+| 7 | User id ngẫu nhiên — còn tấn công được không | Phân tích theo trường hợp | TV1 |
+| 8 | Tấn công khách ghé thăm bất kỳ: (1) sửa profile (2) add friend | Có/Không + giải thích | TV1 |
+| 9 | Vì sao gửi session ID trong data part phát hiện được cross-site | Giải thích (Double Submit) | TV3 |
+| 10 | Trình duyệt có biết request là cross-site không | Có + giải thích | TV2 |
+| 11 | Máy chủ có biết request là cross-site không | Phân tích + điều kiện | TV2 |
+| 12 | Vì sao không thể chỉ dựa vào Referer header | Liệt kê nguyên nhân | TV2 |
+| 13 | Vì sao máy chủ cần biết request là cross-site | Giải thích | TV2 |
+| 14 | Có thể cấm mọi cookie cho cross-site request không | Phân tích hậu quả | TV2 |
+| 15 | (***) Request từ trong iframe Facebook & cách bảo mật | Có/Không + giải pháp | TV3 |
+
+> **Lưu ý kiểm chứng:** Đáp án Câu 15 ở đây trùng khớp với phần "Answer" mẫu đã có sẵn trong chính file `9. CSRF.docx` (dùng `X-Frame-Options`), đồng thời được mở rộng thêm cơ chế hiện đại `Content-Security-Policy: frame-ancestors`.
+
+---
+
 ## ❓ Câu 1
 **Đề bài:** *Explain why the same-site cookie can help prevent CSRF attacks.*  
 *(Giải thích tại sao thuộc tính SameSite của cookie có thể giúp phòng chống tấn công CSRF.)*
@@ -20,6 +46,8 @@ Tài liệu này cung cấp đáp án chi tiết, chuẩn xác về mặt học 
 
 3. **Kết luận:**  
    Vì các cuộc tấn công CSRF gây hại thường sử dụng các request thay đổi trạng thái (`POST` hoặc các `GET` ngầm), việc áp dụng `SameSite=Strict` hoặc `SameSite=Lax` khiến trình duyệt không gửi Cookie xác thực trong request mạo danh. Máy chủ mục tiêu sẽ coi đó là request chưa đăng nhập và từ chối xử lý, từ đó ngăn chặn thành công tấn công CSRF.
+
+> **Liên hệ thực tế (quan trọng cho đề tài này):** Từ năm 2020, các trình duyệt hiện đại (Chrome, Edge, Firefox) đã **mặc định coi cookie không khai báo `SameSite` là `Lax`**. Đây chính là lý do bài lab SEED yêu cầu cấu hình Elgg phát hành cookie `SameSite=None` (hoặc tắt cơ chế bảo vệ) thì cuộc tấn công Fetch API cross-site mới thành công. Trên một hệ thống production đặt `Lax`/`Strict`, chính payload `fetch(..., {credentials: 'include'})` trong dự án này sẽ **không** kèm được cookie phiên và tấn công sẽ thất bại — minh chứng trực tiếp cho hiệu quả của SameSite.
 
 ---
 
@@ -99,6 +127,8 @@ Do yêu cầu sử dụng phương thức `GET`, kẻ tấn công có thể lợ
 
 ### Cơ chế hoạt động:
 Khi nạn nhân (đang đăng nhập trên `www.example.com`) truy cập vào trang web trên, trình duyệt cố gắng tải bức ảnh từ địa chỉ `src`. Quá trình này kích hoạt một HTTP GET request gửi đến `www.example.com/delete.php?pageid=5` kèm theo cookie phiên của nạn nhân. Máy chủ tiếp nhận và xóa trang số 5 của người dùng.
+
+> **Lưu ý trình duyệt hiện đại:** Thủ thuật `<img>` cross-site chỉ gửi kèm cookie khi cookie phiên của `example.com` được đặt `SameSite=None`. Với mặc định `Lax` ngày nay, request GET ngầm qua `<img>` (không phải điều hướng top-level) sẽ **không** kèm cookie → đây cũng là một ví dụ cho thấy vì sao thiết kế `delete` bằng `GET` là cực kỳ nguy hiểm và cần tránh (dùng `POST` + anti-CSRF token).
 
 ---
 

