@@ -19,3 +19,15 @@ Thumbs.db
 
 # Build caches
 .build/
+
+# LaTeX build artifacts (keep .tex and .pdf)
+*.aux
+*.log
+*.toc
+*.nav
+*.snm
+*.out
+*.vrb
+*.fls
+*.fdb_latexmk
+*.synctex.gz
