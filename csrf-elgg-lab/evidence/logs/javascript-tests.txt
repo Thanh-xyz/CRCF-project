@@ -1,0 +1,14 @@
+✔ payload replaces only description and preserves Unicode, duplicate and access fields (0.866667ms)
+✔ no secrets can be entered in attacker fields (0.175125ms)
+✔ reject malformed identities, field shapes and ambiguous description (0.585042ms)
+✔ target confined to local lab, no URL credentials or query leakage (0.3085ms)
+✔ Fetch uses safelisted encoding and the browser owns credentials (0.078959ms)
+✔ attacker has no prohibited request mechanisms or embedded session material (0.583833ms)
+ℹ tests 6
+ℹ suites 0
+ℹ pass 6
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 45.449708

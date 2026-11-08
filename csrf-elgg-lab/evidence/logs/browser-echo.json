@@ -1,0 +1,9 @@
+{
+  "date": "2026-11-08T04:37:12.106Z",
+  "browser": "156.0.8078.81",
+  "test": "TC-02",
+  "status": "PASS",
+  "origin": "http://127.0.0.1:8000",
+  "observed": "TC-02: endpoint thử nghiệm trả lời:\n{\n  \"method\": \"POST\",\n  \"contentType\": \"application/x-www-form-urlencoded\",\n  \"fields\": {\n    \"description\": [\n      \"CSRF attack by 23001939\"\n    ]\n  },\n  \"note\": \"Echo only; no Elgg profile was modified.\"\n}\nĐây chưa phải kết quả Elgg.",
+  "limitation": "Only the echo endpoint was tested. No Elgg result is asserted."
+}

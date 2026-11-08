@@ -1,0 +1,17 @@
+{
+  "status": "NOT RUN — template only; fill from real Network capture",
+  "capturedAt": null,
+  "elggVersion": null,
+  "browserVersion": null,
+  "origin": null,
+  "url": null,
+  "method": null,
+  "contentType": null,
+  "publicFields": [],
+  "csrfFieldNames": [],
+  "sessionCookieName": null,
+  "cookieAttributes": null,
+  "responseStatus": null,
+  "responseSummary": null,
+  "note": "Never add cookie or token values. publicFields uses [[name,value], ...]."
+}

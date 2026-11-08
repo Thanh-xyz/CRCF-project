@@ -1,0 +1,15 @@
+Observed on 2026-11-08, Asia/Ho_Chi_Minh. This is a transcription of tool observations, not an Elgg runtime log.
+macOS 13.5, Darwin arm64.
+Docker client 28.1.1, Compose v2.36.0-desktop.1. Docker Desktop daemon 28.1.1/aarch64 was reachable after sandbox escalation.
+Python 3.14.7; Node 24.18.0; local PHP CLI 8.3.33.
+Initial Docker socket access was sandbox-blocked; elevated read access succeeded.
+Elgg original-arm pull failed: commit failed: sync failed ... input/output error.
+MySQL 8.0.37 pull failed: failed to commit snapshot ... input/output error.
+Disk at failure: 68 MiB available; creating a shell heredoc reported no space left on device; apply_patch initially failed to write.
+Later disk observation: about 1.6 GiB available. No unrelated files, images, volumes or containers were deleted by this task.
+Subsequent docker images inspection hung for over 10 minutes; only the task-created inspection client processes were terminated. Docker daemon was not restarted.
+Compose config validation exited 0 with .env.example and with generated private .env.
+SEED ARM ZIP downloaded from the official site and SHA-256 verified: 13dd0f34a3e5347877a97f6f40c011b424bde6c7ef1dfd41c004975caaa97447.
+fetch-seed extracted the public demo SQL and removed the upstream site secret.
+PHP syntax checks: settings.php, patch-csrf.php, initialize.php, profile.php, version.php all passed. sh -n entrypoint.sh passed.
+Elgg version, image digest, services runtime, profile reset, valid Edit Profile capture and CSRF exploitation remain NOT RUN.

@@ -1,0 +1,8 @@
+.env
+__pycache__/
+.build/
+node_modules/
+lab/vendor/
+*.har
+*.pcap
+evidence/private/

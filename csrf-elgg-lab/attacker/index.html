@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="vi">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Nhóm 6 · CSRF Elgg Lab</title><link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+<main>
+  <header><span class="eyebrow">AN TOÀN MÁY TÍNH / NHÓM 6</span>
+    <h1>CSRF trên Elgg<span>Quan sát. Gửi request. Xác minh.</span></h1>
+    <p>Phòng thực hành cục bộ · Fetch API + URLSearchParams · Tài khoản giả lập Alice</p>
+  </header>
+  <section class="layout">
+    <div class="controls">
+      <h2>01 / Cấu hình thực nghiệm</h2>
+      <label for="studentId">Mã sinh viên</label><input id="studentId" value="23001939" maxlength="8" inputmode="numeric">
+      <label for="endpoint">URL đầy đủ của Edit Profile — lấy từ Network</label>
+      <input id="endpoint" placeholder="Dán endpoint cục bộ đã quan sát">
+      <label for="fields">Các trường công khai — JSON gồm cặp [tên, giá trị]</label>
+      <textarea id="fields" rows="7" spellcheck="false" placeholder='[["tên trường đã quan sát", "giá trị"]]'></textarea>
+      <p class="hint">Giữ các trường cần thiết từ request hợp lệ. description sẽ được thay bằng chuỗi theo MSV. Loại bỏ __elgg_token, __elgg_ts; không dán HAR, cookie hay mật khẩu.</p>
+      <label for="mode">Chế độ Fetch</label><select id="mode"><option value="cors">cors — quan sát lỗi đọc response</option><option value="no-cors">no-cors — response opaque</option></select>
+      <label class="check"><input type="checkbox" id="observed"> Tôi đã xác nhận URL và tên trường bằng Network trong lab.</label>
+      <div class="buttons"><button id="preview" type="button">Xem request</button><button id="echo" type="button">Thử echo (TC-02)</button><button id="send" class="primary" type="button">Gửi tới Elgg</button></div>
+    </div>
+    <div class="results"><h2>02 / Request dự kiến</h2><pre id="previewText">Chưa cấu hình. Có thể chạy thử echo trước.</pre>
+      <h2>03 / Nhật ký trình duyệt</h2><pre id="status" role="status" aria-live="polite">Chưa gửi request.</pre>
+      <aside><strong>Xác minh độc lập trên Elgg</strong><p>Đăng nhập Alice, tải mới profile và đối chiếu About me. HTTP 200, lỗi CORS hoặc response opaque đều chưa đủ để kết luận thành công.</p></aside>
+      <p class="hint">JavaScript không đọc được cookie HttpOnly và không xác định chắc chắn nguyên nhân Fetch thất bại. Kiểm tra Network, cookie attributes và thông báo Elgg.</p>
+    </div>
+  </section>
+  <footer>Nguyễn Trung Thành · 23001935 / Nguyễn Công Trí · 23001939 / Nguyễn Minh Thao · 23001936</footer>
+</main><script type="module" src="/app.js"></script>
+</body></html>
