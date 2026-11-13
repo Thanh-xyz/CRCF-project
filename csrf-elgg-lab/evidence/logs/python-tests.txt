@@ -1,0 +1,34 @@
+test_echo_preserves_encoding_and_never_returns_cookie (test_environment.AttackerServerTests.test_echo_preserves_encoding_and_never_returns_cookie) ... POST /echo completed
+ok
+test_echo_rejects_secret_fields_and_wrong_content_type (test_environment.AttackerServerTests.test_echo_rejects_secret_fields_and_wrong_content_type) ... POST /echo completed
+/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/tempfile.py:484: ResourceWarning: Implicitly cleaning up <HTTPError 415: 'Unsupported Media Type'>
+  _warnings.warn(self.warn_message, ResourceWarning)
+POST /echo completed
+/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/tempfile.py:484: ResourceWarning: Implicitly cleaning up <HTTPError 400: 'Bad Request'>
+  _warnings.warn(self.warn_message, ResourceWarning)
+POST /echo completed
+POST /echo completed
+/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/tempfile.py:484: ResourceWarning: Implicitly cleaning up <HTTPError 413: 'Content Too Large'>
+  _warnings.warn(self.warn_message, ResourceWarning)
+ok
+test_health_and_html (test_environment.AttackerServerTests.test_health_and_html) ... GET /health completed
+GET / completed
+ok
+test_static_allowlist_hides_project_and_secrets (test_environment.AttackerServerTests.test_static_allowlist_hides_project_and_secrets) ... GET /.env completed
+GET /.env completed
+/opt/homebrew/Cellar/python@3.14/3.14.7/Frameworks/Python.framework/Versions/3.14/lib/python3.14/tempfile.py:484: ResourceWarning: Implicitly cleaning up <HTTPError 404: 'Not Found'>
+  _warnings.warn(self.warn_message, ResourceWarning)
+GET /../exploit.py completed
+GET /../exploit.py completed
+GET /lab/seed/elgg.sql completed
+GET /lab/seed/elgg.sql completed
+GET /docs/x completed
+GET /docs/x completed
+ok
+test_elgg_responds_without_cors_allowance (test_security_controls.LiveTests.test_elgg_responds_without_cors_allowance) ... skipped 'NOT RUN: requires running Docker Elgg lab'
+test_services_healthy (test_security_controls.LiveTests.test_services_healthy) ... skipped 'NOT RUN: requires running Docker Elgg lab'
+
+----------------------------------------------------------------------
+Ran 6 tests in 0.533s
+
+OK (skipped=2)

@@ -1,0 +1,62 @@
+name: csrf-elgg-group6
+services:
+  db:
+    image: mysql:8.0.37
+    command: --default-authentication-plugin=mysql_native_password
+    environment:
+      MYSQL_DATABASE: elgg_seed
+      MYSQL_USER: seed
+      MYSQL_PASSWORD: ${DB_PASSWORD:?Run labctl init}
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD:?Run labctl init}
+    volumes:
+      - db_data:/var/lib/mysql
+      - ./lab/seed/elgg.sql:/docker-entrypoint-initdb.d/01-elgg.sql:ro
+    healthcheck:
+      test: [CMD-SHELL, 'MYSQL_PWD="$$MYSQL_PASSWORD" mysql -useed elgg_seed -e "SELECT 1 FROM elgg_config LIMIT 1" >/dev/null']
+      interval: 5s
+      timeout: 4s
+      retries: 40
+    networks: [lab]
+  elgg:
+    build:
+      context: .
+      dockerfile: lab/Dockerfile
+      args:
+        SEED_ELGG_IMAGE: ${SEED_ELGG_IMAGE:-handsonsecurity/seed-elgg:original-arm}
+    environment:
+      DB_PASSWORD: ${DB_PASSWORD}
+      ELGG_URL: ${ELGG_URL:-http://elgg.csrf.localhost:8080/}
+      LAB_CSRF_MODE: ${LAB_CSRF_MODE:-protected}
+    ports:
+      - '127.0.0.1:${ELGG_PORT:-8080}:80'
+    depends_on:
+      db:
+        condition: service_healthy
+    networks: [lab]
+    healthcheck:
+      test: [CMD-SHELL, 'curl -fsS -H "Host: elgg.csrf.localhost" http://127.0.0.1/ >/dev/null']
+      interval: 10s
+      timeout: 5s
+      retries: 12
+  attacker:
+    image: python:3.12.8-alpine
+    working_dir: /app
+    command: [python, exploit.py, --bind, 0.0.0.0, --port, '8000']
+    environment:
+      STUDENT_ID: ${STUDENT_ID:-23001939}
+    volumes:
+      - ./attacker:/app/attacker:ro
+      - ./exploit.py:/app/exploit.py:ro
+    ports:
+      - '127.0.0.1:${ATTACKER_PORT:-8000}:8000'
+    networks: [lab]
+    healthcheck:
+      test: [CMD, python, -c, 'import urllib.request; urllib.request.urlopen("http://127.0.0.1:8000/health")']
+      interval: 10s
+      timeout: 3s
+      retries: 5
+networks:
+  lab:
+    internal: true
+volumes:
+  db_data:

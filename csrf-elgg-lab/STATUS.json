@@ -1,0 +1,23 @@
+{
+  "date": "2026-11-08",
+  "project": "Nhóm 6 — CSRF on Elgg",
+  "overall": "INCOMPLETE: Elgg runtime blocked by Docker storage errors",
+  "passed": {
+    "javascript_tests": 6,
+    "http_server_tests": 4,
+    "browser_TC_02": true,
+    "compose_config": true,
+    "php_and_shell_syntax": true,
+    "pptx_12_slides_600_seconds": true
+  },
+  "not_run": [
+    "TC-01",
+    "TC-03 on Elgg",
+    "TC-04",
+    "TC-05",
+    "TC-06",
+    "exact Elgg version and image digest",
+    "Elgg profile reset",
+    "video recording and YouTube upload"
+  ]
+}

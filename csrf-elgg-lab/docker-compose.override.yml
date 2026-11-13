@@ -1,0 +1,9 @@
+networks:
+  lab:
+    # Host access to the Elgg and attacker ports requires a non-internal bridge.
+    internal: false
+
+volumes:
+  db_data:
+    # Avoid reusing a lab volume initialized with credentials from another checkout.
+    name: csrf-elgg-group6_workspace_db_data
