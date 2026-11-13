@@ -3,7 +3,7 @@
 if (PHP_SAPI !== 'cli') { http_response_code(404); exit; }
 require_once '/var/www/elgg/vendor/autoload.php';
 \Elgg\Application::start();
-$user = elgg_get_user_by_username('alice');
+$user = get_user_by_username('alice');
 if (!$user) { fwrite(STDERR, "Alice not found\n"); exit(1); }
 if (($argv[1] ?? '') === 'reset') {
     $previous = elgg_set_ignore_access(true);

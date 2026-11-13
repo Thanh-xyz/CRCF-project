@@ -1,0 +1,66 @@
+{
+  "date": "2026-11-13",
+  "runner": "Claude-in-Chrome (manual) + curl",
+  "elgg_version": "3.3.3",
+  "elgg_image_digest": "sha256:5d8a25b14ef5be67aa62aa1979b895583d6cf3c5b2a71f6fdcd49416b708f7f5",
+  "student_id": "23001939",
+  "expected_string": "CSRF attack by 23001939",
+  "baseline_string": "Alice — hồ sơ ban đầu của Nhóm 6",
+  "results": [
+    {
+      "id": "TC-B01",
+      "status": "PASS",
+      "mode": "protected",
+      "observed": "Đăng nhập Alice và Save hợp lệ cập nhật About me; request POST /action/profile/edit có __elgg_token và __elgg_ts.",
+      "public_fields": ["guid=56", "name", "description", "accesslevel[description]"],
+      "evidence": "evidence/screenshots/TC-B01-baseline-profile.jpg"
+    },
+    {
+      "id": "TC-B02",
+      "status": "PASS",
+      "observed": "Echo endpoint cùng origin phản chiếu body URL-encoded, không trả cookie.",
+      "evidence": "evidence/screenshots/TC-02-echo.png"
+    },
+    {
+      "id": "TC-B04",
+      "status": "PASS",
+      "mode": "protected",
+      "origin": "http://attacker.csrf.localhost:8000",
+      "same_site": true,
+      "fetch_mode": "no-cors",
+      "observed": "Elgg từ chối: 'Form is missing __token or __ts fields'. About me giữ baseline. Token bảo vệ hiệu quả.",
+      "evidence": "evidence/screenshots/TC-B04-protected-blocked-missing-token.jpg"
+    },
+    {
+      "id": "TC-B03-crosssite",
+      "status": "PASS",
+      "mode": "vulnerable",
+      "origin": "http://127.0.0.1:8000",
+      "same_site": false,
+      "fetch_mode": "no-cors",
+      "observed": "Dù token đã tắt, POST chéo-site không đổi profile: cookie SameSite không được đính cho cross-site POST.",
+      "evidence": "evidence/screenshots/TC-B03-crosssite-127-sent.jpg"
+    },
+    {
+      "id": "TC-B05-TC-B06",
+      "status": "PASS",
+      "mode": "vulnerable",
+      "origin": "http://attacker.csrf.localhost:8000",
+      "same_site": true,
+      "fetch_mode": "no-cors",
+      "observed": "Token tắt + cùng-site: Elgg chấp nhận; About me của Alice = 'CSRF attack by 23001939'. Tấn công thành công.",
+      "evidence": "evidence/screenshots/TC-B06-attack-success-about-me.jpg"
+    }
+  ],
+  "curl_http_layer": {
+    "protected": {"tokenless_post": "blocked", "redirect": "/", "profile_changed": false},
+    "vulnerable": {"tokenless_post": "accepted", "redirect": "/profile/alice", "profile_changed": true},
+    "restored": {"profile_changed": false}
+  },
+  "finding": {
+    "title": "About me lưu dưới dạng annotation profile:description, không phải metadata description",
+    "impact": "labctl reset-profile chỉ đặt lại metadata nên không khôi phục được giá trị hiển thị; cần sửa annotation hoặc reset qua UI Edit profile.",
+    "tables": {"display_source": "elgg_annotations (profile:description)", "cli_reset_target": "elgg_metadata (description)"}
+  },
+  "restore": {"mode": "protected", "about_me": "baseline", "annotation_id": 13, "verified": true}
+}

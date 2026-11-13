@@ -96,7 +96,7 @@ def main():
         image_id = compose('images', '-q', 'elgg', capture=True).stdout.strip()
         if image_id:
             subprocess.run(['docker', 'image', 'inspect', image_id, '--format',
-                            '{{.Id}} {{json .RepoDigests}}'], check=True)
+                            '{{.Id}} {{json .RepoDigests}}'], check=False)
 
 
 if __name__ == '__main__':
